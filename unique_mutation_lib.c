@@ -1,4 +1,4 @@
-#include "unique_mutation_lib.h"
+#include "pileup_stat_lib.h"
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -64,10 +64,11 @@ int print_mpileup_line(struct Mpileup_line* my_pup_line){
     //print bases and covs
     int i;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        printf("A %d,C %d,G %d,T %d\n",(*my_pup_line).base_counts[i][ABASE],
+        printf("A %d,C %d,G %d,T %d, cov %d\n",(*my_pup_line).base_counts[i][ABASE],
                                         (*my_pup_line).base_counts[i][CBASE],
                                         (*my_pup_line).base_counts[i][GBASE],
-                                        (*my_pup_line).base_counts[i][TBASE]);
+                                        (*my_pup_line).base_counts[i][TBASE],
+                                        (*my_pup_line).filtered_cov[i]);
                                         
         printf("A %.2f,C %.2f,G %.2f,T %.2f\n",(*my_pup_line).base_freqs[i][ABASE],
                                                 (*my_pup_line).base_freqs[i][CBASE],
@@ -177,19 +178,16 @@ int get_mpileup_line(struct Mpileup_line* my_pup_line,char* line, ssize_t line_s
     gets next entry from tab separated input string as null terminated char*
 */
 int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** result){
-    char tempbuf[MAXCOV]; //buffer
-    int c=0;
-    while(line[*pointer]!='\t' && *pointer<line_size){
-                   tempbuf[c]=line[*pointer];
-                   c++;
-                   (*pointer)++;
-                }
+    int c,c0;
+    c0 = *pointer;
+    while(line[*pointer]!='\t' && *pointer<line_size)(*pointer)++;
+    c = *pointer-c0;
     (*pointer)++;
     
-    tempbuf[c]=0;
     if(*result != NULL) free(*result);
     *result = (char*)malloc( (c+1) * sizeof(char));
-    memcpy(*result,tempbuf,(c+1) * sizeof(char));
+    memcpy(*result,line+c0,c * sizeof(char));
+    (*result)[c] = 0;
     
     //printf("%s \n",*result);
     return c;
@@ -208,6 +206,7 @@ int count_bases_all_sample(struct Mpileup_line* my_pup_line,int baseq_lim){
     for(i=0;i<(*my_pup_line).n_samples;i++){
         count_bases((*my_pup_line).bases[i],(*my_pup_line).quals[i],
                     (*my_pup_line).base_counts[i],
+                    &((*my_pup_line).filtered_cov[i]),
                     (*my_pup_line).ref_nuq,baseq_lim);
     }
     return 0;
@@ -216,31 +215,36 @@ int count_bases_all_sample(struct Mpileup_line* my_pup_line,int baseq_lim){
 /*
     counts bases in one sample
 */
-int count_bases(char* bases,char* quals,int* base_counts,char ref_base,int baseq_lim){
+int count_bases(char* bases,char* quals,int* base_counts,int* filtered_cov, char ref_base,int baseq_lim){
     base_counts[0] = base_counts[1] = base_counts[2] = base_counts[3] = base_counts[4] = 0 ;
     int i=0; //for bases
     int j=0; //for qualities
     char* offset;
+    (*filtered_cov)=0;
     while(bases[i]!=0){
-        if(quals[j] >= baseq_lim + 33 ){
-            if(bases[i]=='.' || bases[i]==',' ) base_counts[REFBASE]++;
-            else if(bases[i]=='A' || bases[i]=='a' ) base_counts[ABASE]++;
-            else if(bases[i]=='C' || bases[i]=='c' ) base_counts[CBASE]++;
-            else if(bases[i]=='G' || bases[i]=='g' ) base_counts[GBASE]++;
-            else if(bases[i]=='T' || bases[i]=='t' ) base_counts[TBASE]++;
-            }
         //jump deletions insertions
         if(bases[i]=='-' || bases[i]=='+') {
             int indel_len=strtol(&bases[i+1],&offset,10);
             i+= offset-&bases[i+1] + indel_len;
             j--;
         }
+        //jump the end of the read, beggining of the read signs
         else if(bases[i] == '^' ) {i++;j--;}
         else if(bases[i] == '$' ) j--;
+       
+        //real base data
+        else if(quals[j] >= baseq_lim + 33 ){
+            if(bases[i]=='.' || bases[i]==',' ) base_counts[REFBASE]++;
+            else if(bases[i]=='A' || bases[i]=='a' ) base_counts[ABASE]++;
+            else if(bases[i]=='C' || bases[i]=='c' ) base_counts[CBASE]++;
+            else if(bases[i]=='G' || bases[i]=='g' ) base_counts[GBASE]++;
+            else if(bases[i]=='T' || bases[i]=='t' ) base_counts[TBASE]++;
+            (*filtered_cov)++;
+            }
         i++;j++;
         }
         
-    //add refbase to corrsponding base
+    //add refbase to corresponding base
     if(ref_base=='A')base_counts[ABASE]+=base_counts[REFBASE];
     else if(ref_base=='C')base_counts[CBASE]+=base_counts[REFBASE];
     else if(ref_base=='G')base_counts[GBASE]+=base_counts[REFBASE];
@@ -262,7 +266,7 @@ int calculate_base_freqs_all_sample(struct Mpileup_line* my_pup_line){
     for(i=0;i<(*my_pup_line).n_samples;i++){
         calculate_base_freqs((*my_pup_line).base_freqs[i],
                             (*my_pup_line).base_counts[i],
-                            (*my_pup_line).cov[i]);
+                            (*my_pup_line).filtered_cov[i]);
     }
     return 0;
 }
@@ -406,3 +410,34 @@ int get_2_smallest_ref_freqs(struct Mpileup_line* my_pup_line,double* val_1,
     *idx_2=tmp_idx_2;
     return 0;
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////
+// Statistics
+////////////////////////////////////////////////////////////////////////////
+
+/*
+    returns 1 if the position is clean in all samples , 0 if noisy
+*/
+int count_clean_pos(struct Mpileup_line* my_pup_line){
+    int i;
+    for(i=0;i<(*my_pup_line).n_samples;i++){
+        if((*my_pup_line).base_freqs[i][REFBASE] != 1.0 ) return 0;
+    }
+    return 1;
+}
+  
+
+/*
+    returns the number of sample covered with cov limit
+*/
+int count_covered_pos(struct Mpileup_line* my_pup_line, int cov_limit){
+    int i,c;
+    c=0;
+    for(i=0;i<(*my_pup_line).n_samples;i++){
+        if((*my_pup_line).filtered_cov[i] >= cov_limit ) c++;
+    }
+    return c;
+}
+
