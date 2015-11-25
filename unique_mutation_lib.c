@@ -308,7 +308,7 @@ int call_mutation(struct Mpileup_line* my_pup_line,double min_sample_freq,
     char mut_base;
     get_2_highest_non_ref_freqs(my_pup_line,&freq_1,&freq_2,&idx_1,&idx_2,&mut_base);
 
-    if (freq_1 > min_sample_freq && freq_2 <max_other_freq && (*my_pup_line).cov[idx_1] >= cov_limit ){
+    if (freq_1 >= min_sample_freq && freq_2 < max_other_freq && (*my_pup_line).filtered_cov[idx_1] >= cov_limit ){
         printf("%d\t%s\t%d\t%c\t%c\n",idx_1,(*my_pup_line).chrom,(*my_pup_line).pos,
                 (*my_pup_line).ref_nuq,mut_base);
     }
