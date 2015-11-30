@@ -4,13 +4,16 @@
 
 //maximum sample limit, change it if you have more samples
 #define MAXSAMPLE 1024
-
+//maximum length of an indel
+#define MAX_INDEL_LEN 128 
+    
 //bases are stored in arrays, element indices are defined here
 #define ABASE 0
 #define CBASE 1
 #define GBASE 2
 #define TBASE 3
 #define REFBASE 4
+#define DELBASE 5 
 
 // 0 coverage samples also have some kind of "frequency"
 // should always check for this when working with the frequencies
@@ -43,8 +46,14 @@ struct Mpileup_line
     char* quals[MAXSAMPLE];
     
     //more structured data
-    int base_counts[MAXSAMPLE][5];
-    double base_freqs[MAXSAMPLE][5];
+    int base_counts[MAXSAMPLE][6];
+    int ins_counts[MAXSAMPLE];
+    int del_counts[MAXSAMPLE];
+   
+    //char ins_bases[MAXSAMPLE][MAX_INDEL_LEN];
+    //char del_bases[MAXSAMPLE][MAX_INDEL_LEN];
+    
+    double base_freqs[MAXSAMPLE][6];
     //these data are after base_Q filter, so the coverage can change
     int filtered_cov[MAXSAMPLE];
     
@@ -130,14 +139,34 @@ int get_mpileup_line(struct Mpileup_line* my_pup_line,char* line, ssize_t read);
 /*
     counts bases in all samples
 */
-int count_bases_all_sample(struct Mpileup_line* my_pup_line,int baseq_lim);
+int count_bases_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim);
 
 
 /*
     counts bases in one sample
 */
-int count_bases(char* bases,char* quals,int* base_counts,int* filtered_cov, char ref_base,int baseq_lim);
+int count_bases(char* bases, char* quals,
+                int* base_counts,int* del_count, int* ins_count, int* filtered_cov,
+                char ref_base,int baseq_lim);
 
+/* 
+    parse a base from the bases and quals
+*/
+int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
+                   int* base_ptr,int* qual_ptr,int baseq_lim);
+
+
+/* 
+    parse a deletion from the bases and quals
+*/
+int handle_deletion(char* bases,int* del_count,
+                   int* base_ptr);
+
+/* 
+    parse an insertion from the bases and quals
+*/
+int handle_insertion(char* bases,int* ins_count,
+                   int* base_ptr);
 
 ////////////////////////////////////////////////////////////////////////////
 // Calculate base frequencies

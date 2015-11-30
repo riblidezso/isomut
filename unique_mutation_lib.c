@@ -64,11 +64,15 @@ int print_mpileup_line(struct Mpileup_line* my_pup_line){
     //print bases and covs
     int i;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        printf("A %d,C %d,G %d,T %d, cov %d\n",(*my_pup_line).base_counts[i][ABASE],
-                                        (*my_pup_line).base_counts[i][CBASE],
-                                        (*my_pup_line).base_counts[i][GBASE],
-                                        (*my_pup_line).base_counts[i][TBASE],
-                                        (*my_pup_line).filtered_cov[i]);
+        printf("A %d,C %d,G %d,T %d,del %d,ins_start %d, del_start %d, cov %d\n",
+               (*my_pup_line).base_counts[i][ABASE],
+               (*my_pup_line).base_counts[i][CBASE],
+               (*my_pup_line).base_counts[i][GBASE],
+               (*my_pup_line).base_counts[i][TBASE],
+               (*my_pup_line).base_counts[i][DELBASE],
+               (*my_pup_line).ins_counts[i],
+               (*my_pup_line).del_counts[i],
+               (*my_pup_line).filtered_cov[i]);
                                         
         printf("A %.2f,C %.2f,G %.2f,T %.2f\n",(*my_pup_line).base_freqs[i][ABASE],
                                                 (*my_pup_line).base_freqs[i][CBASE],
@@ -201,11 +205,13 @@ int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** resul
 /*
     counts bases in all samples
 */
-int count_bases_all_sample(struct Mpileup_line* my_pup_line,int baseq_lim){
+int count_bases_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim){
     int i=0;
     for(i=0;i<(*my_pup_line).n_samples;i++){
         count_bases((*my_pup_line).bases[i],(*my_pup_line).quals[i],
                     (*my_pup_line).base_counts[i],
+                    &((*my_pup_line).del_counts[i]),
+                    &((*my_pup_line).ins_counts[i]),
                     &((*my_pup_line).filtered_cov[i]),
                     (*my_pup_line).ref_nuq,baseq_lim);
     }
@@ -215,40 +221,90 @@ int count_bases_all_sample(struct Mpileup_line* my_pup_line,int baseq_lim){
 /*
     counts bases in one sample
 */
-int count_bases(char* bases,char* quals,int* base_counts,int* filtered_cov, char ref_base,int baseq_lim){
-    base_counts[0] = base_counts[1] = base_counts[2] = base_counts[3] = base_counts[4] = 0 ;
-    int i=0; //for bases
-    int j=0; //for qualities
-    char* offset;
+int count_bases(char* bases, char* quals,int* base_counts, int* del_count,
+                int* ins_count,int* filtered_cov,char ref_base,int baseq_lim){
+    
+    //initialize counts to zero
+    base_counts[0] = base_counts[1] = base_counts[2] = 0;
+    base_counts[3] = base_counts[4] = base_counts[5] = 0 ;
+    *ins_count = *del_count = 0;
+    
+    int i=0; //pointer in str for bases
+    int j=0; //pointer in str for qualities
     (*filtered_cov)=0;
     while(bases[i]!=0){
-        //jump deletions insertions
-        if(bases[i]=='-' || bases[i]=='+') {
-            int indel_len=strtol(&bases[i+1],&offset,10);
-            i+= offset-&bases[i+1] + indel_len;
-            j--;
-        }
-        //jump the end of the read, beggining of the read signs
-        else if(bases[i] == '^' ) {i++;j--;}
-        else if(bases[i] == '$' ) j--;
-       
+        //beginning and end of the read signs
+        if(bases[i] == '$' ) i++; //next
+        else if(bases[i] == '^' ) {i+=2;} //jump next character (mapq too)
+        //deletions
+        else if(bases[i]=='-' ) handle_deletion(bases,del_count,&i);
+        //insetions
+        else if(bases[i]=='+' ) handle_insertion(bases,ins_count,&i); 
         //real base data
-        else if(quals[j] >= baseq_lim + 33 ){
-            if(bases[i]=='.' || bases[i]==',' ) base_counts[REFBASE]++;
-            else if(bases[i]=='A' || bases[i]=='a' ) base_counts[ABASE]++;
-            else if(bases[i]=='C' || bases[i]=='c' ) base_counts[CBASE]++;
-            else if(bases[i]=='G' || bases[i]=='g' ) base_counts[GBASE]++;
-            else if(bases[i]=='T' || bases[i]=='t' ) base_counts[TBASE]++;
-            (*filtered_cov)++;
-            }
-        i++;j++;
-        }
-        
+        else handle_base(bases,quals,base_counts,filtered_cov,&i,&j,baseq_lim);
+    }
     //add refbase to corresponding base
     if(ref_base=='A')base_counts[ABASE]+=base_counts[REFBASE];
     else if(ref_base=='C')base_counts[CBASE]+=base_counts[REFBASE];
     else if(ref_base=='G')base_counts[GBASE]+=base_counts[REFBASE];
     else if(ref_base=='T')base_counts[TBASE]+=base_counts[REFBASE];
+    
+    return 0;
+}
+
+
+/* 
+    parse a base from the bases and quals
+*/
+int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
+                   int* base_ptr,int* qual_ptr,int baseq_lim){
+    if(quals[*qual_ptr] >= baseq_lim + 33 ){
+        char c = bases[*base_ptr]; 
+        if(c=='.' || c==',' )      base_counts[REFBASE]++;
+        else if(c=='A' || c=='a' ) base_counts[ABASE]++;
+        else if(c=='C' || c=='c' ) base_counts[CBASE]++;
+        else if(c=='G' || c=='g' ) base_counts[GBASE]++;
+        else if(c=='T' || c=='t' ) base_counts[TBASE]++;
+        else if(c=='*' ) base_counts[DELBASE]++;
+        (*filtered_cov)++;
+    }
+    (*qual_ptr)++;
+    (*base_ptr)++;
+    
+    return 0;
+}
+
+/* 
+    parse a deletion from the bases and quals
+*/
+int handle_deletion(char* bases,int* del_count,int* base_ptr){
+    char* offset;
+    (*del_count)++;
+    int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
+    (*base_ptr)+= offset-&bases[*base_ptr+1] + indel_len;
+ 
+    /*
+    //save if first
+    if( *del_count ==0 ) memcpy(del_bases,offset,indel_len * sizeof(char));
+    //compare if second
+    else{
+        int i;
+        for (i=0;i<indel_len;i++){
+            if( offset[i] != del_bases[i] )
+                
+        }
+     */   
+    return 0;
+}
+
+/* 
+    parse an insertion from the bases and quals
+*/
+int handle_insertion(char* bases,int* ins_count,int* base_ptr){
+    char* offset;
+    (*ins_count)++;
+    int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
+    (*base_ptr)+= offset-&bases[*base_ptr+1] + indel_len;
     
     return 0;
 }
@@ -306,6 +362,9 @@ int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
     double sample_mut_freq,min_other_ref_freq;
     int sample_idx;
     char mut_base;
+    
+    //filter position if it has indel
+    //todo
     
     get_max_non_ref_freq(my_pup_line,&sample_mut_freq,&sample_idx,&mut_base);
     get_min_ref_freq(my_pup_line,&min_other_ref_freq,sample_idx);
