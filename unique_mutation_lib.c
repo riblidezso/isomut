@@ -285,7 +285,7 @@ int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage){
     }
     else{
         for(i=0;i<5;i++){
-            base_freqs[i]=-9999;
+            base_freqs[i]= ZERO_COV_FREQ;
         }
     }
     return 0;
@@ -300,16 +300,20 @@ int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage){
 /*
     calls mutation from frequencies
 */
-
-int call_mutation(struct Mpileup_line* my_pup_line,double min_sample_freq,
-                    double max_other_freq,int cov_limit){
-    double freq_1,freq_2;
-    int idx_1,idx_2;
+int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
+                    double min_other_ref_freq_limit,int cov_limit){
+    
+    double sample_mut_freq,min_other_ref_freq;
+    int sample_idx;
     char mut_base;
-    get_2_highest_non_ref_freqs(my_pup_line,&freq_1,&freq_2,&idx_1,&idx_2,&mut_base);
+    
+    get_max_non_ref_freq(my_pup_line,&sample_mut_freq,&sample_idx,&mut_base);
+    get_min_ref_freq(my_pup_line,&min_other_ref_freq,sample_idx);
 
-    if (freq_1 >= min_sample_freq && freq_2 < max_other_freq && (*my_pup_line).filtered_cov[idx_1] >= cov_limit ){
-        printf("%d\t%s\t%d\t%c\t%c\n",idx_1,(*my_pup_line).chrom,(*my_pup_line).pos,
+    if (sample_mut_freq >= sample_mut_freq_limit && // mut freq larger than limit
+        min_other_ref_freq > min_other_ref_freq_limit && //other sample ref_freq higher than limit 
+        (*my_pup_line).filtered_cov[sample_idx] >= cov_limit ){ //coverage higher than limit
+        printf("%d\t%s\t%d\t%c\t%c\n",sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
                 (*my_pup_line).ref_nuq,mut_base);
     }
     return 0;        
@@ -317,127 +321,61 @@ int call_mutation(struct Mpileup_line* my_pup_line,double min_sample_freq,
 
 
 /*
-    gets the 2 highest not reference base freqs
+    gets the highest not reference mut freq
 */
-int get_2_highest_non_ref_freqs(struct Mpileup_line* my_pup_line,double* val_1,
-                                double* val_2, int* idx_1, int* idx_2, char* mut_base){
-    if((*my_pup_line).n_samples<2){
-        printf("ERROR get_2_highest_non_ref_freqs make no sense if there are less than 2 samples");
-        exit(1);
-    }
+int get_max_non_ref_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, char* mut_base){
+
+    //arrays only for encoding/decoding base indices to bases
     int base_2_idx[256];
     base_2_idx[ 'A' ] = 0;base_2_idx[ 'C' ] = 1;
     base_2_idx[ 'G' ] = 2;base_2_idx[ 'T' ] = 3;
     char idx_2_base[4];
     idx_2_base[ 0 ] = 'A';idx_2_base[ 1 ] = 'C';
     idx_2_base[ 2 ] = 'G';idx_2_base[ 3 ] = 'T';
-    
+  
+    //get index for ref base
     int ref_idx=base_2_idx[(int)(*my_pup_line).ref_nuq];
-    
-    double tmp_val_1, tmp_val_2;
-    tmp_val_1 = tmp_val_2 = -42;
-    int tmp_idx_1, tmp_idx_2;
-    tmp_idx_1 = tmp_idx_2 = -42;
-    char tmp_mut_base=0;
+   
+    //initialize values to negative numbers
+    *val = -42;
+    *idx  = -42;
     
     int i,j;
+    //loop over samples
     for(i=0;i<(*my_pup_line).n_samples;i++){
+        //loop over bases
         for(j=0;j<4;j++){
-            if ( j!=ref_idx && (*my_pup_line).base_freqs[i][j] > tmp_val_1 &&
-                (*my_pup_line).base_freqs[i][j] !=-9999 ){
-                tmp_val_1=(*my_pup_line).base_freqs[i][j];
-                tmp_idx_1=i;
-                tmp_mut_base=idx_2_base[j];
+            if ( j!=ref_idx && //base is not the reference base
+                (*my_pup_line).base_freqs[i][j] > *val && //larger than largest yet
+                (*my_pup_line).base_freqs[i][j] != ZERO_COV_FREQ ){ //not a 0 cov sample
+                //save value of max, sample idx, and the mut base as chr
+                *val=(*my_pup_line).base_freqs[i][j];
+                *idx=i;
+                *mut_base=idx_2_base[j];
             }
         }
     }
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        for(j=0;j<4;j++){
-            if ( j!=ref_idx && (*my_pup_line).base_freqs[i][j] > tmp_val_2 &&
-                i!=tmp_idx_1 && (*my_pup_line).base_freqs[i][j] !=-9999 ){
-                tmp_val_2=(*my_pup_line).base_freqs[i][j];
-                tmp_idx_2=i;
-            }
-        }
-    }
-    
-    *val_1=tmp_val_1;
-    *val_2=tmp_val_2;
-    *idx_1=tmp_idx_1;
-    *idx_2=tmp_idx_2;
-    *mut_base=tmp_mut_base;
-    
     return 0;
 }
 
 
 /*
-    gets the 2 smallest reference base freqs
-    its not used now
+    gets the lowest reference freq, except for 1 sample
 */
-int get_2_smallest_ref_freqs(struct Mpileup_line* my_pup_line,double* val_1,
-                                double* val_2, int* idx_1, int* idx_2){
-    if((*my_pup_line).n_samples<2){
-        printf("ERROR get_2_smallest_ref_freqs make no sense if there are less than 2 samples");
-        exit(1);
-    }
-    
-    double tmp_val_1, tmp_val_2;
-    tmp_val_1 = tmp_val_2 = 42;
-    int tmp_idx_1, tmp_idx_2;
-    tmp_idx_1 = tmp_idx_2 = -42;
+int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip ){
+    //initialize value to large number
+    *val = 42;
     
     int i;
+    //loop over samples
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        if ( (*my_pup_line).base_freqs[i][REFBASE] < tmp_val_1 &&
-            (*my_pup_line).base_freqs[i][REFBASE] !=-9999 ){
-            tmp_val_1=(*my_pup_line).base_freqs[i][REFBASE];
-            tmp_idx_1=i;
-        } 
+        if ( i != idx_2skip && // skip the mutated sample
+           (*my_pup_line).base_freqs[i][REFBASE] < *val && //smaller than smallest yet
+           (*my_pup_line).base_freqs[i][REFBASE] != ZERO_COV_FREQ ){ //not a 0 cov sample
+                //save value of min
+            *val=(*my_pup_line).base_freqs[i][REFBASE];
+        }
     }
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        if ( (*my_pup_line).base_freqs[i][REFBASE] < tmp_val_2 &&
-            (*my_pup_line).base_freqs[i][REFBASE] !=-9999 &&
-            tmp_idx_1 !=i ){
-            tmp_val_2=(*my_pup_line).base_freqs[i][REFBASE];
-            tmp_idx_2=i;
-        } 
-    }
-    
-    *val_1=tmp_val_1;
-    *val_2=tmp_val_2;
-    *idx_1=tmp_idx_1;
-    *idx_2=tmp_idx_2;
     return 0;
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////
-// Statistics
-////////////////////////////////////////////////////////////////////////////
-
-/*
-    returns 1 if the position is clean in all samples , 0 if noisy
-*/
-int count_clean_pos(struct Mpileup_line* my_pup_line){
-    int i;
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        if((*my_pup_line).base_freqs[i][REFBASE] != 1.0 ) return 0;
-    }
-    return 1;
-}
-  
-
-/*
-    returns the number of sample covered with cov limit
-*/
-int count_covered_pos(struct Mpileup_line* my_pup_line, int cov_limit){
-    int i,c;
-    c=0;
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        if((*my_pup_line).filtered_cov[i] >= cov_limit ) c++;
-    }
-    return c;
 }
 

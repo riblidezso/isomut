@@ -2,13 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAXSAMPLE 256
+//maximum sample limit, change it if you have more samples
+#define MAXSAMPLE 1024
 
+//bases are stored in arrays, element indices are defined here
 #define ABASE 0
 #define CBASE 1
 #define GBASE 2
 #define TBASE 3
 #define REFBASE 4
+
+// 0 coverage samples also have some kind of "frequency"
+// should always check for this when working with the frequencies
+#define ZERO_COV_FREQ -9999
 
     
 ///////////////////////////////////////////////////////////////////////////
@@ -159,30 +165,23 @@ int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage);
 ////////////////////////////////////////////////////////////////////////////
 
 
-
-
-/*
-    gets the 2 smallest reference base freqs
-*/
-int get_2_smallest_ref_freqs(struct Mpileup_line* my_pup_line,double* val_1,
-                                double* val_2, int* idx_1, int* idx_2);
-                                
-
-/*
-    gets the 2 highest not reference base freqs
-*/
-int get_2_highest_non_ref_freqs(struct Mpileup_line* my_pup_line,double* val_1,
-                                double* val_2, int* idx_1, int* idx_2, char* mut_base);
-
 /*
     calls mutation from frequencies
 */
-
-int call_mutation(struct Mpileup_line* my_pup_line,double min_sample_freq,
-                    double max_other_freq,int cov_limit);
-
+int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
+                    double min_other_ref_freq_limit,int cov_limit);
 
 
+/*
+    gets the highest not reference mut freq
+*/
+int get_max_non_ref_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, char* mut_base);
+
+
+/*
+    gets the lowest reference freq, except for 1 sample
+*/
+int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip );
 
 ////////////////////////////////////////////////////////////////////////////
 // Statistics
