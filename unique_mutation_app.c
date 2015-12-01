@@ -51,14 +51,6 @@ int main(int argc, char** argv)
         calculate_base_freqs_all_sample(&my_pup_line);
         call_mutation(&my_pup_line,min_sample_freq,max_other_freq,cov_limit,
                      last_gap_chrom,last_gap_pos,prox_gap_min_dist);
-       
-        //printf("%s %d\n",last_gap_chrom,last_gap_pos);
-        
-        //print_mpileup_line(&my_pup_line);
-        if( my_pup_line.del_counts[0]!= 0 ){
-            //print_mpileup_line(&my_pup_line);
-            //print_mpileup_line_indels(&my_pup_line);
-        }
     }
 
     //free resources
