@@ -57,6 +57,10 @@ struct Mpileup_line
     //these data are after base_Q filter, so the coverage can change
     int filtered_cov[MAXSAMPLE];
     
+    //mutation info
+    char mut_base;
+    int mut_sample_idx;
+    
 };
 
 
@@ -118,6 +122,16 @@ int print_mpileup_line_freqs(struct Mpileup_line* my_pup_line);
 */
 int print_mpileup_line_pos(struct Mpileup_line* my_pup_line);
 
+
+
+////////////////////////////////////////////////////////////////////////////
+// deep copy pileup struct
+////////////////////////////////////////////////////////////////////////////
+
+/*
+    deep copy mpileup line
+*/
+int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from);
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -196,13 +210,27 @@ int free_indel_bases(char*** ins_bases,char*** del_bases);
 
 
 ////////////////////////////////////////////////////////////////////////////
-// Proximal gap filtering 
+// Proximal gap filtering related
 ////////////////////////////////////////////////////////////////////////////
   
 /*
     updates last indel gap position if there is one at the position
 */
-int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int* last_gap_pos);
+int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int* last_gap_pos, int* is_gap);
+
+/*
+    if position is gap delete all potential mutations too close
+*/
+int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* mut_ptr,
+                                  char* last_gap_chrom,int last_gap_pos,
+                                 int proximal_gap_min_distance);
+    
+/*
+    prints and deletes mutations, which have survived the hindsight proximal gap filtering
+*/
+int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
+                             char* recent_chrom,int recent_pos,int* mut_ptr,
+                             int proximal_gap_min_distance);
 
 ////////////////////////////////////////////////////////////////////////////
 // Calculate base frequencies
@@ -229,6 +257,10 @@ int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage);
 // Call mutatations
 ////////////////////////////////////////////////////////////////////////////
 
+/*
+    print mutation
+*/
+int print_mutation(struct Mpileup_line* my_pup_line);
 
 /*
     calls mutation from frequencies
