@@ -50,8 +50,8 @@ struct Mpileup_line
     int ins_counts[MAXSAMPLE];
     int del_counts[MAXSAMPLE];
    
-    //char ins_bases[MAXSAMPLE][MAX_INDEL_LEN];
-    //char del_bases[MAXSAMPLE][MAX_INDEL_LEN];
+    char** ins_bases[MAXSAMPLE];
+    char** del_bases[MAXSAMPLE];
     
     double base_freqs[MAXSAMPLE][6];
     //these data are after base_Q filter, so the coverage can change
@@ -103,7 +103,11 @@ int print_mpileup_line(struct Mpileup_line* my_pup_line);
 */
 int print_mpileup_line_counts(struct Mpileup_line* my_pup_line);
 
-
+/*
+    printf indels in mpileup line
+*/
+int print_mpileup_line_indels(struct Mpileup_line* my_pup_line);
+    
 /*
     printf base freqs in mpileup line
 */
@@ -168,6 +172,38 @@ int handle_deletion(char* bases,int* del_count,
 int handle_insertion(char* bases,int* ins_count,
                    int* base_ptr);
 
+
+////////////////////////////////////////////////////////////////////////////
+// Collect indels
+////////////////////////////////////////////////////////////////////////////
+
+/*
+    collect indels in all samples
+*/
+int collect_indels_all_samples(struct Mpileup_line* my_pup_line);
+
+
+/*
+    collect the inserted, and deleted bases
+*/
+int collect_indels(char* bases, char*** ins_bases, int ins_count, char*** del_bases, int del_count);
+
+/*
+    free memory of indel bases
+*/
+int free_indel_bases(char*** ins_bases,char*** del_bases);
+
+
+
+////////////////////////////////////////////////////////////////////////////
+// Proximal gap filtering 
+////////////////////////////////////////////////////////////////////////////
+  
+/*
+    updates last indel gap position if there is one at the position
+*/
+int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int* last_gap_pos);
+
 ////////////////////////////////////////////////////////////////////////////
 // Calculate base frequencies
 ////////////////////////////////////////////////////////////////////////////
@@ -198,8 +234,8 @@ int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage);
     calls mutation from frequencies
 */
 int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
-                    double min_other_ref_freq_limit,int cov_limit);
-
+                  double min_other_ref_freq_limit,int cov_limit,
+                  char* last_gap_chrom, int last_gap_pos, int proximal_gap_min_distance);
 
 /*
     gets the highest not reference mut freq
