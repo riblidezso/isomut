@@ -551,6 +551,8 @@ int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
            break;
        }
     }
+    //if all of them skipped nothing to flush
+    if(last_skipped==0) return 0;
     
     //print the ones accepted
     for(i=0;i<last_skipped;i++){
