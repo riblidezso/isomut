@@ -63,6 +63,10 @@ int main(int argc, char** argv)
                                           prox_gap_min_dist);
         }
         
+        //indels todo!!!
+        //collect indels
+        collect_indels_all_samples(&my_pup_line);
+        
         //call mutation with prox gap filtering
         if ( 1 == call_mutation(&my_pup_line,min_sample_freq,max_other_freq,cov_limit,
                      last_gap_chrom,last_gap_pos,prox_gap_min_dist) ){
@@ -77,10 +81,6 @@ int main(int argc, char** argv)
             flush_accepted_mutations(potential_mut_lines,my_pup_line.chrom,my_pup_line.pos,
                                      &mut_ptr,prox_gap_min_dist);
         }
-        
-        //indels todo!!!
-        //collect indels
-        collect_indels_all_samples(&my_pup_line);
     }
    
     //print mutations left at the very end

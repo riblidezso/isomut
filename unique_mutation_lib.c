@@ -184,8 +184,6 @@ int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from) {
     (*target).mut_base=(*from).mut_base;
     (*target).mut_sample_idx=(*from).mut_sample_idx;
    
-    //return 0;
-    
     int i,j;
     for(i=0;i<(*target).n_samples;i++){
         (*target).cov[i]=(*from).cov[i];
@@ -377,7 +375,7 @@ int handle_deletion(char* bases,int* del_count,int* base_ptr){
     char* offset;
     (*del_count)++;
     int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
-    (*base_ptr)+= offset-&bases[*base_ptr+1] + indel_len;
+    (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
     return 0;
 }
 
@@ -388,7 +386,7 @@ int handle_insertion(char* bases,int* ins_count,int* base_ptr){
     char* offset;
     (*ins_count)++;
     int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
-    (*base_ptr)+= offset-&bases[*base_ptr+1] + indel_len;
+    (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
     return 0;
 }
 
@@ -489,17 +487,20 @@ int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int
     *is_gap=1;
     int i=0;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        //last gap is either an inserion, or a deleted base
-        if ((*my_pup_line).ins_counts[i]!=0 || (*my_pup_line).base_counts[i][DELBASE]!=0){
+        //last gap is either an insertion start deletion start, or a deleted base
+        if ((*my_pup_line).ins_counts[i]!=0 || 
+            (*my_pup_line).del_counts[i]!=0 || 
+            (*my_pup_line).base_counts[i][DELBASE]!=0){
             //copy last chrom
             if ( *last_gap_chrom != NULL ) free(*last_gap_chrom);
             *last_gap_chrom = (char*) malloc( (strlen((*my_pup_line).chrom)+1) * sizeof(char));
             strcpy(*last_gap_chrom,(*my_pup_line).chrom);
             //pos
             *last_gap_pos=(*my_pup_line).pos;
-            break;
             //set inidicator
             *is_gap=0;
+            
+            break;
         }
     }
     return 0;
