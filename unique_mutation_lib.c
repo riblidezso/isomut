@@ -520,7 +520,7 @@ int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* 
             
             //delete this line
             //free resources
-            free_mpileup_line(&(potential_mut_lines[0]));
+            free_mpileup_line(&(potential_mut_lines[i]));
             //decrement mut_pointer
             (*mut_ptr)--;
         }
