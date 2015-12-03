@@ -11,6 +11,7 @@ int init_mpileup_line(struct Mpileup_line* my_pup_line){
     int i;
     (*my_pup_line).raw_line=NULL;
     (*my_pup_line).chrom=NULL;
+    
     for(i=0;i<MAXSAMPLE;i++){
         (*my_pup_line).bases[i]=NULL;
         (*my_pup_line).quals[i]=NULL;
@@ -27,26 +28,99 @@ int init_mpileup_line(struct Mpileup_line* my_pup_line){
     frees all malloced objects in Mpileup_line struct
 */
 int free_mpileup_line(struct Mpileup_line* my_pup_line){
-    free((*my_pup_line).raw_line);
-    free((*my_pup_line).chrom);
+    if( (*my_pup_line).raw_line !=NULL) free((*my_pup_line).raw_line);
+    if( (*my_pup_line).chrom !=NULL) free((*my_pup_line).chrom);
+    
     int i,j;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        free((*my_pup_line).bases[i]);
-        free((*my_pup_line).quals[i]);
+        if( (*my_pup_line).bases[i] !=NULL) free((*my_pup_line).bases[i]);
+        if( (*my_pup_line).quals[i] !=NULL) free((*my_pup_line).quals[i]);
         
-        for(j=0;j<(*my_pup_line).ins_counts[i];j++){
-            free((*my_pup_line).ins_bases[i][j]);
+        if( (*my_pup_line).ins_bases[i] !=NULL){
+            for(j=0;j<(*my_pup_line).ins_counts[i];j++){
+                free((*my_pup_line).ins_bases[i][j]);
+            }
+            free((*my_pup_line).ins_bases[i]);
         }
-        free((*my_pup_line).ins_bases[i]);
         
-        for(j=0;j<(*my_pup_line).del_counts[i];j++){
-            free((*my_pup_line).del_bases[i][j]);
+        if( (*my_pup_line).del_bases[i] !=NULL){
+            for(j=0;j<(*my_pup_line).del_counts[i];j++){
+                free((*my_pup_line).del_bases[i][j]);
+            }
+            free((*my_pup_line).del_bases[i]);
         }
-        free((*my_pup_line).del_bases[i]);
     }
+    //initalize the pointers to null
+    init_mpileup_line(my_pup_line);
     return 0;
 }
 
+
+////////////////////////////////////////////////////////////////////////////
+// deep copy pileup struct
+////////////////////////////////////////////////////////////////////////////
+
+/*
+    deep copy mpileup line
+*/
+int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from) {
+    //free and initialize resources int the target
+    free_mpileup_line(target);
+   
+    //copy raw line and chromosome
+    (*target).raw_line = (char*) malloc((strlen((*from).raw_line)+1) * sizeof(char));
+    strcpy( (*target).raw_line, (*from).raw_line);
+    (*target).chrom = (char*) malloc((strlen((*from).chrom)+1) * sizeof(char));
+    strcpy( (*target).chrom, (*from).chrom);
+
+    //copy the position level data
+    (*target).pos=(*from).pos;
+    (*target).ref_nuq=(*from).ref_nuq;
+    (*target).n_samples=(*from).n_samples;
+   
+    ///copy the mutation related data
+    (*target).mut_base=(*from).mut_base;
+    (*target).mut_sample_idx=(*from).mut_sample_idx;
+    strcpy( (*target).mut_type, (*from).mut_type);
+    strncpy( (*target).mut_indel, (*from).mut_indel,MAX_INDEL_LEN);
+   
+    int i,j;
+    for(i=0;i<(*target).n_samples;i++){
+        //copy basic data cov, bases, quals 
+        (*target).cov[i]=(*from).cov[i];
+        (*target).bases[i] = (char*) malloc((strlen((*from).bases[i])+1) * sizeof(char));
+        strcpy( (*target).bases[i], (*from).bases[i]);
+        (*target).quals[i] = (char*) malloc((strlen((*from).quals[i])+1) * sizeof(char));
+        strcpy( (*target).quals[i], (*from).quals[i]);
+        
+        //copy filtered data, counts, coverage
+        for(j=0;j<6;j++){
+            (*target).base_counts[i][j]=(*from).base_counts[i][j];
+            (*target).base_freqs[i][j]=(*from).base_freqs[i][j];
+        }
+        (*target).filtered_cov[i]=(*from).filtered_cov[i];
+           
+        //copy the indel count and freqs
+        (*target).ins_counts[i]=(*from).ins_counts[i];
+        (*target).del_counts[i]=(*from).del_counts[i];
+        (*target).ins_freqs[i]=(*from).ins_freqs[i];
+        (*target).del_freqs[i]=(*from).del_freqs[i];
+       
+        //copy all indel sequences
+        (*target).ins_bases[i] = (char**) malloc( (*target).ins_counts[i] * sizeof(char*));
+        (*target).del_bases[i] = (char**) malloc( (*target).del_counts[i] * sizeof(char*));
+        for (j=0;j<(*target).ins_counts[i];j++){
+            (*target).ins_bases[i][j] = (char*) malloc((strlen((*from).ins_bases[i][j])+1) * sizeof(char));
+            strcpy( (*target).ins_bases[i][j], (*from).ins_bases[i][j]);
+        } 
+        for (j=0;j<(*target).del_counts[i];j++){
+            (*target).del_bases[i][j] = (char*) malloc((strlen((*from).del_bases[i][j])+1) * sizeof(char));
+            strcpy( (*target).del_bases[i][j], (*from).del_bases[i][j]);
+        }
+    }
+    return 0;
+}
+    
 
 ////////////////////////////////////////////////////////////////////////////
 // formatted printing functions
@@ -63,13 +137,10 @@ int print_mpileup_raw_line(struct Mpileup_line* my_pup_line){
 }
 
 
-
 /*
     printf formatted representation of mpileup line
 */
 int print_mpileup_line(struct Mpileup_line* my_pup_line){
-    //print the raw line
-    //printf("%s \n",(*my_pup_line).raw_line);
 
     //print position level info
     printf("%s %d %c\n",(*my_pup_line).chrom,(*my_pup_line).pos,(*my_pup_line).ref_nuq);
@@ -96,23 +167,6 @@ int print_mpileup_line(struct Mpileup_line* my_pup_line){
     return 0;
 }
 
-/*
-    printf base counts in mpileup line
-*/
-int print_mpileup_line_counts(struct Mpileup_line* my_pup_line){
-    //print position level info
-    printf("%s %d %c\n",(*my_pup_line).chrom,(*my_pup_line).pos,(*my_pup_line).ref_nuq);
-    
-    //print bases and covs
-    int i;
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        printf("A %d,C %d,G %d,T %d\n",(*my_pup_line).base_counts[i][ABASE],
-                                        (*my_pup_line).base_counts[i][CBASE],
-                                        (*my_pup_line).base_counts[i][GBASE],
-                                        (*my_pup_line).base_counts[i][TBASE]);
-    }
-    return 0;
-}
 
 /*
     printf indels in mpileup line
@@ -134,25 +188,6 @@ int print_mpileup_line_indels(struct Mpileup_line* my_pup_line){
     return 0;
 }
 
-
-/*
-    printf base freqs in mpileup line
-*/
-int print_mpileup_line_freqs(struct Mpileup_line* my_pup_line){
-    //print position level info
-    printf("%s %d %c\n",(*my_pup_line).chrom,(*my_pup_line).pos,(*my_pup_line).ref_nuq);
-    
-    //print bases and covs
-    int i;
-    for(i=0;i<(*my_pup_line).n_samples;i++){
-        printf("A %.2f,C %.2f,G %.2f,T %.2f\n",(*my_pup_line).base_freqs[i][ABASE],
-                                                (*my_pup_line).base_freqs[i][CBASE],
-                                                (*my_pup_line).base_freqs[i][GBASE],
-                                                (*my_pup_line).base_freqs[i][TBASE]);
-    }
-    return 0;
-}
-
 /*
     print pos
 */
@@ -162,64 +197,7 @@ int print_mpileup_line_pos(struct Mpileup_line* my_pup_line){
     return 0;
 }
 
-////////////////////////////////////////////////////////////////////////////
-// deep copy pileup struct
-////////////////////////////////////////////////////////////////////////////
-
-/*
-    deep copy mpileup line
-*/
-int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from) {
-    
-    (*target).raw_line = (char*) malloc((strlen((*from).raw_line)+1) * sizeof(char));
-    strcpy( (*target).raw_line, (*from).raw_line);
-    
-    (*target).chrom = (char*) malloc((strlen((*from).chrom)+1) * sizeof(char));
-    strcpy( (*target).chrom, (*from).chrom);
-
-    (*target).pos=(*from).pos;
-    (*target).ref_nuq=(*from).ref_nuq;
-    (*target).n_samples=(*from).n_samples;
-    
-    (*target).mut_base=(*from).mut_base;
-    (*target).mut_sample_idx=(*from).mut_sample_idx;
    
-    int i,j;
-    for(i=0;i<(*target).n_samples;i++){
-        (*target).cov[i]=(*from).cov[i];
-        
-        (*target).bases[i] = (char*) malloc((strlen((*from).bases[i])+1) * sizeof(char));
-        strcpy( (*target).bases[i], (*from).bases[i]);
-        
-        (*target).quals[i] = (char*) malloc((strlen((*from).quals[i])+1) * sizeof(char));
-        strcpy( (*target).quals[i], (*from).quals[i]);
-        
-        for(j=0;j<6;j++){
-            (*target).base_counts[i][j]=(*from).base_counts[i][j];
-            (*target).base_freqs[i][j]=(*from).base_freqs[i][j];
-        }
-        (*target).filtered_cov[i]=(*from).filtered_cov[i];
-            
-        (*target).ins_counts[i]=(*from).ins_counts[i];
-        (*target).del_counts[i]=(*from).del_counts[i];
-        
-        (*target).ins_bases[i] = (char**) malloc( (*target).ins_counts[i] * sizeof(char*));
-        (*target).del_bases[i] = (char**) malloc( (*target).del_counts[i] * sizeof(char*));
-        for (j=0;j<(*target).ins_counts[i];i++){
-            (*target).ins_bases[i][j] = (char*) malloc((strlen((*from).ins_bases[i][j])+1) * sizeof(char));
-            strcpy( (*target).ins_bases[i][j], (*from).ins_bases[i][j]);
-        } 
-        for (j=0;j<(*target).del_counts[i];i++){
-            (*target).del_bases[i][j] = (char*) malloc((strlen((*from).del_bases[i][j])+1) * sizeof(char));
-            strcpy( (*target).del_bases[i][j], (*from).del_bases[i][j]);
-        }
-    }
-    
-    
-    return 0;
-}
-    
-    
 
 ////////////////////////////////////////////////////////////////////////////
 // read pileup struct from mpileup line
@@ -283,9 +261,8 @@ int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** resul
     memcpy(*result,line+c0,c * sizeof(char));
     (*result)[c] = 0;
     
-    //printf("%s \n",*result);
     return c;
-    }
+}
 
 
 
@@ -356,12 +333,9 @@ int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
         else if(c=='C' || c=='c' ) base_counts[CBASE]++;
         else if(c=='G' || c=='g' ) base_counts[GBASE]++;
         else if(c=='T' || c=='t' ) base_counts[TBASE]++;
+        if(c=='*' ) base_counts[DELBASE]++;
         (*filtered_cov)++;
     }
-    
-    //no Q filtering for deletions 
-    if(c=='*' ) base_counts[DELBASE]++;
-    
     (*qual_ptr)++;
     (*base_ptr)++;
     
@@ -483,23 +457,32 @@ int free_indel_bases(char*** ins_bases,char*** del_bases){
 /*
     updates last indel gap position if there is one at the position
 */
-int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int* last_gap_pos, int* is_gap){
+int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, 
+                    int* last_gap_pos_start, int* last_gap_pos_end, int* is_gap){
     *is_gap=1;
-    int i=0;
+    int i,j;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        //last gap is either an insertion start deletion start, or a deleted base
+        //last gap is either an insertion start deletion start
         if ((*my_pup_line).ins_counts[i]!=0 || 
-            (*my_pup_line).del_counts[i]!=0 || 
-            (*my_pup_line).base_counts[i][DELBASE]!=0){
+            (*my_pup_line).del_counts[i]!=0 ){ 
             //copy last chrom
             if ( *last_gap_chrom != NULL ) free(*last_gap_chrom);
             *last_gap_chrom = (char*) malloc( (strlen((*my_pup_line).chrom)+1) * sizeof(char));
             strcpy(*last_gap_chrom,(*my_pup_line).chrom);
-            //pos
-            *last_gap_pos=(*my_pup_line).pos;
+            //pos 
+            *last_gap_pos_start = (*my_pup_line).pos;
+             if ( *last_gap_pos_start >= *last_gap_pos_end ){
+                 *last_gap_pos_end = *last_gap_pos_start + 1;
+             }
+                 
+            //gap pos end is hihger for deletions
+            for (j=0;j < (*my_pup_line).del_counts[i];j++){
+                if(*last_gap_pos_end < (*my_pup_line).pos + 1 + (int) strlen((*my_pup_line).del_bases[i][j])){
+                    *last_gap_pos_end = (*my_pup_line).pos + 1 + (int) strlen((*my_pup_line).del_bases[i][j]);
+                }
+            }
             //set inidicator
             *is_gap=0;
-            
             break;
         }
     }
@@ -510,13 +493,13 @@ int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, int
     if position is gap delete all potential mutations too close
 */
 int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* mut_ptr,
-                                  char* last_gap_chrom,int last_gap_pos,
+                                  char* last_gap_chrom,int last_gap_pos_start,
                                  int proximal_gap_min_distance){
     int i; 
     for(i= *mut_ptr-1;i>=0;i--){
         //filter position if it is too close to last gap
         if (strcmp(last_gap_chrom,potential_mut_lines[i].chrom) == 0 && //same chrom
-            last_gap_pos - potential_mut_lines[i].pos  < proximal_gap_min_distance ){ // proximal gap
+            last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_distance ){ // proximal gap
             
             //delete this line
             //free resources
@@ -582,70 +565,95 @@ int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
 /*
     calculate base freqs in all samples
 */
-int calculate_base_freqs_all_sample(struct Mpileup_line* my_pup_line){
+int calculate_freqs_all_samples(struct Mpileup_line* my_pup_line){
     int i=0;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        calculate_base_freqs((*my_pup_line).base_freqs[i],
-                            (*my_pup_line).base_counts[i],
-                            (*my_pup_line).filtered_cov[i]);
+        calculate_freqs((*my_pup_line).base_freqs[i],
+                        (*my_pup_line).base_counts[i],
+                        (*my_pup_line).ins_counts[i],
+                        &(*my_pup_line).ins_freqs[i],
+                        (*my_pup_line).del_counts[i],
+                        &(*my_pup_line).del_freqs[i],
+                        (*my_pup_line).filtered_cov[i],
+                        (*my_pup_line).cov[i]);
     }
     return 0;
 }
 
 
 /*
-   calculate base freqs in a sample
+   calculate freqs in a sample
 */
-int calculate_base_freqs(double* base_freqs,int* base_counts, int coverage){
-    base_freqs[0] = base_freqs[1] = base_freqs[2] = base_freqs[3] = base_freqs[4] = 0 ;
+int calculate_freqs(double* base_freqs,int* base_counts,int ins_count,double* ins_freq,
+                    int del_count, double* del_freq, int coverage,int unfiltered_coverage){
     int i;
     if (coverage!=0){
-        for(i=0;i<5;i++){
+        for(i=0;i<6;i++){
             base_freqs[i]=( (double) base_counts[i]) / coverage;
         }
     }
-    else{
-        for(i=0;i<5;i++){
+    else {
+        for(i=0;i<6;i++){
             base_freqs[i]= ZERO_COV_FREQ;
         }
+    }
+    if (unfiltered_coverage!=0){
+       *ins_freq = ( (double) ins_count) / unfiltered_coverage;
+       *del_freq = ( (double) del_count) / unfiltered_coverage;
+    }
+    else {
+        *ins_freq = ZERO_COV_FREQ;
+        *del_freq = ZERO_COV_FREQ;
     }
     return 0;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////
-// Call mutatations
+// Call Mutations 
 ////////////////////////////////////////////////////////////////////////////
-
 
 /*
     print mutation
 */
 int print_mutation(struct Mpileup_line* my_pup_line){
-    printf("%d\t%s\t%d\t%c\t%c\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
-                (*my_pup_line).ref_nuq,(*my_pup_line).mut_base);
+    if ( strcmp((*my_pup_line).mut_type,"SNV") ==0 ){
+        printf("%d\t%s\t%d\t%s\t%c\t%c\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).ref_nuq,(*my_pup_line).mut_base);
+    }
+    if ( strcmp((*my_pup_line).mut_type,"INS") ==0   ){
+        printf("%d\t%s\t%d\t%s\t-\t%s\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).mut_indel);
+    }
+    if ( strcmp((*my_pup_line).mut_type,"DEL") ==0   ){
+        printf("%d\t%s\t%d\t%s\t%s\t-\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).mut_indel);
+    }
     return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////
+// Call SNVs
+////////////////////////////////////////////////////////////////////////////
 
 
 /*
     calls mutation from frequencies
 */
-int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
-                  double min_other_ref_freq_limit,int cov_limit,
-                  char* last_gap_chrom, int last_gap_pos, int proximal_gap_min_distance){
+int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
+             double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
+             char* last_gap_chrom, int last_gap_pos_end, int proximal_gap_min_distance){
     
     //filter position if it is too close to last gap
     if ( last_gap_chrom != NULL && //no gap yet
          strcmp(last_gap_chrom,(*my_pup_line).chrom) == 0 && //same chrom
-         (*my_pup_line).pos - last_gap_pos < proximal_gap_min_distance ){ // proximal gap
+         (*my_pup_line).pos - last_gap_pos_end < proximal_gap_min_distance ){ // proximal gap
         return 0;
     }
         
-    
     double sample_mut_freq,min_other_ref_freq;
     int sample_idx;
-    char mut_base;
+    char mut_base = 'E';
     
     get_max_non_ref_freq(my_pup_line,&sample_mut_freq,&sample_idx,&mut_base);
     get_min_ref_freq(my_pup_line,&min_other_ref_freq,sample_idx);
@@ -656,7 +664,11 @@ int call_mutation(struct Mpileup_line* my_pup_line,double sample_mut_freq_limit,
         
         (*my_pup_line).mut_base=mut_base;
         (*my_pup_line).mut_sample_idx=sample_idx;
-        return 1;
+        strncpy((*my_pup_line).mut_type, "SNV\0",4);
+        
+        //save potential mutation
+        copy_mpileup_line(saved_mut,my_pup_line);
+        (*mut_ptr)++;
     }
     return 0;        
 }
@@ -721,3 +733,109 @@ int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip
     return 0;
 }
 
+
+////////////////////////////////////////////////////////////////////////////
+// Call indels 
+////////////////////////////////////////////////////////////////////////////
+
+
+/*
+    calls indels
+*/
+int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
+             double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
+             char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end, int proximal_gap_min_distance){
+    
+    //filter position if it is too close to last gap
+    if ( last_gap_chrom != NULL && //no gap yet
+         strcmp(last_gap_chrom,(*my_pup_line).chrom) == 0  && //same chrom
+         (*my_pup_line).pos - last_gap_pos_end < proximal_gap_min_distance  && // proximal gap
+         (*my_pup_line).pos != last_gap_pos_start ){ //  dont filter for indel because of himself!
+        return 0;
+    }
+    
+    //todo
+    //collect_unique_indels();
+    
+    double sample_indel_freq,max_other_indel_freq;
+    int sample_idx;
+    char mut_indel[MAX_INDEL_LEN];
+    char mut_type[4];
+    
+    get_max_indel_freq(my_pup_line,&sample_indel_freq,&sample_idx,mut_indel,mut_type);
+    get_max_other_indel_freq(my_pup_line,&max_other_indel_freq,sample_idx);
+    
+    if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
+        max_other_indel_freq < 1-min_other_ref_freq_limit && //other sample indel freq lower than limit 
+        (*my_pup_line).filtered_cov[sample_idx] >= cov_limit ){ //coverage higher than limit
+        
+        strncpy((*my_pup_line).mut_indel,mut_indel,MAX_INDEL_LEN);
+        (*my_pup_line).mut_sample_idx=sample_idx;
+        strncpy((*my_pup_line).mut_type,mut_type,4);
+        
+        //save potential mutation
+        copy_mpileup_line(saved_mut,my_pup_line);
+        (*mut_ptr)++;
+    }
+    return 0;        
+}
+
+
+
+/*
+    gets the highest indel freq 
+*/
+int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, char* mut_indel,char* mut_type){
+    //initialize values to negative numbers
+    *val = 0 ;
+    *idx  = 0 ; 
+    
+    int i;
+    //loop over samples
+    for(i=0;i<(*my_pup_line).n_samples;i++){
+        if( (*my_pup_line).ins_freqs[i] > (*val) && //larger than largest yet
+            (*my_pup_line).ins_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
+           //save value of max, sample idx, and the mut base as chr
+            *val=(*my_pup_line).ins_freqs[i];
+            *idx=i;
+            strncpy(mut_indel,(*my_pup_line).ins_bases[i][0],strlen((*my_pup_line).ins_bases[i][0])+1);
+            strncpy(mut_type,"INS\0",4);
+        }
+        if( (*my_pup_line).del_freqs[i] > (*val) && //larger than largest yet
+            (*my_pup_line).del_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
+           //save value of max, sample idx, and the mut base as chr
+            *val=(*my_pup_line).del_freqs[i];
+            *idx=i;
+            strncpy(mut_indel,(*my_pup_line).del_bases[i][0],strlen((*my_pup_line).del_bases[i][0])+1);
+            strncpy(mut_type,"DEL\0",4);
+        }
+    }
+    return 0;
+}
+
+
+/*
+    gets the highest indel freq, except for 1 sample
+*/
+int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip ){
+    //initialize value to negative number
+    *val = - 42;
+    
+    int i;
+    //loop over samples
+    for(i=0;i<(*my_pup_line).n_samples;i++){
+        if ( i != idx_2skip && // skip the mutated sample
+           (*my_pup_line).ins_freqs[i] > *val && // larger
+           (*my_pup_line).ins_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
+                //save value of  max
+            *val=(*my_pup_line).ins_freqs[i];
+        }
+        if ( i != idx_2skip && // skip the mutated sample
+           (*my_pup_line).del_freqs[i] > *val && // larger
+           (*my_pup_line).del_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
+                //save value of max
+            *val=(*my_pup_line).del_freqs[i];
+        }
+    }
+    return 0;
+}
