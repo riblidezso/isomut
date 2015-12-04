@@ -54,13 +54,6 @@ int main(int argc, char** argv)
         
         //collect indels
         collect_indels_all_samples(&my_pup_line);
-        //update last gap position seen
-        update_last_gap(&my_pup_line,&last_gap_chrom,&last_gap_pos_start,&last_gap_pos_end,&is_gap);
-        
-        //if a gap start at this pos, delete in hindsight all potential mutations too close
-        if( is_gap == 0 ) proximal_gap_hindsight_filter(potential_mut_lines,&mut_ptr,
-                                                        last_gap_chrom,last_gap_pos_start,
-                                                       prox_gap_min_dist);
         
         //call snvs with forward prox gap filtering
         call_snv(&(potential_mut_lines[mut_ptr]),&mut_ptr,&my_pup_line,
@@ -71,6 +64,14 @@ int main(int argc, char** argv)
         call_indel(&(potential_mut_lines[mut_ptr]),&mut_ptr,&my_pup_line,
                       min_sample_freq,max_other_freq,cov_limit,
                       last_gap_chrom,last_gap_pos_start,last_gap_pos_end,prox_gap_min_dist); 
+        
+        //update last gap position seen
+        update_last_gap(&my_pup_line,&last_gap_chrom,&last_gap_pos_start,&last_gap_pos_end,&is_gap);
+        
+        //if a gap start at this pos, delete in hindsight all potential mutations too close
+        if( is_gap == 0 ) proximal_gap_hindsight_filter(potential_mut_lines,&mut_ptr,
+                                                        last_gap_chrom,last_gap_pos_start,
+                                                       prox_gap_min_dist);
         
         //if potential mut container is full: flush and print the accepted mutations
         // also flush occasionally 
