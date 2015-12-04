@@ -41,7 +41,7 @@ int main(int argc, char** argv)
     int is_gap = 1 ; // 0 yes, 1 no
     
     //print header
-    printf("#sample\tchr\tpos\ttype\tref_nuq\tmut\n");
+    printf("#sample\tchr\tpos\ttype\tfisher_p_value\tref\tmut\n");
     
     //loop over input lines
     while ((chars_read = getline(&line, &len, stdin)) != -1) {

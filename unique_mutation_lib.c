@@ -81,6 +81,7 @@ int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from) {
     ///copy the mutation related data
     (*target).mut_base=(*from).mut_base;
     (*target).mut_sample_idx=(*from).mut_sample_idx;
+    (*target).mut_fisher=(*from).mut_fisher;
     strcpy( (*target).mut_type, (*from).mut_type);
     strncpy( (*target).mut_indel, (*from).mut_indel,MAX_INDEL_LEN);
    
@@ -618,16 +619,16 @@ int calculate_freqs(double* base_freqs,int* base_counts,int ins_count,double* in
 */
 int print_mutation(struct Mpileup_line* my_pup_line){
     if ( strcmp((*my_pup_line).mut_type,"SNV") ==0 ){
-        printf("%d\t%s\t%d\t%s\t%c\t%c\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
-                (*my_pup_line).mut_type,(*my_pup_line).ref_nuq,(*my_pup_line).mut_base);
+        printf("%d\t%s\t%d\t%s\t%e\t%c\t%c\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).mut_fisher,(*my_pup_line).ref_nuq,(*my_pup_line).mut_base);
     }
     if ( strcmp((*my_pup_line).mut_type,"INS") ==0   ){
-        printf("%d\t%s\t%d\t%s\t-\t%s\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
-                (*my_pup_line).mut_type,(*my_pup_line).mut_indel);
+        printf("%d\t%s\t%d\t%s\t%e\t-\t%s\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).mut_fisher,(*my_pup_line).mut_indel);
     }
     if ( strcmp((*my_pup_line).mut_type,"DEL") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%s\t-\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
-                (*my_pup_line).mut_type,(*my_pup_line).mut_indel);
+        printf("%d\t%s\t%d\t%s\t%e\t%s\t-\n",(*my_pup_line).mut_sample_idx,(*my_pup_line).chrom,(*my_pup_line).pos,
+                (*my_pup_line).mut_type,(*my_pup_line).mut_fisher,(*my_pup_line).mut_indel);
     }
     return 0;
 }
@@ -652,11 +653,11 @@ int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* 
     }
         
     double sample_mut_freq,min_other_ref_freq;
-    int sample_idx;
+    int sample_idx,other_idx;
     char mut_base = 'E';
     
     get_max_non_ref_freq(my_pup_line,&sample_mut_freq,&sample_idx,&mut_base);
-    get_min_ref_freq(my_pup_line,&min_other_ref_freq,sample_idx);
+    get_min_ref_freq(my_pup_line,&min_other_ref_freq,sample_idx,&other_idx);
 
     if (sample_mut_freq >= sample_mut_freq_limit && // mut freq larger than limit
         min_other_ref_freq > min_other_ref_freq_limit && //other sample ref_freq higher than limit 
@@ -665,6 +666,18 @@ int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* 
         (*my_pup_line).mut_base=mut_base;
         (*my_pup_line).mut_sample_idx=sample_idx;
         strncpy((*my_pup_line).mut_type, "SNV\0",4);
+       
+        /*
+        printf("%d %d %d %d\n",(uint32_t) ((1-sample_mut_freq) * (*my_pup_line).filtered_cov[sample_idx]),
+                               (uint32_t) (sample_mut_freq * (*my_pup_line).filtered_cov[sample_idx]),
+                               (uint32_t) (min_other_ref_freq * (*my_pup_line).filtered_cov[other_idx]),
+                               (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]));
+                               */
+        
+        (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_mut_freq) * (*my_pup_line).filtered_cov[sample_idx]),
+                               (uint32_t) (sample_mut_freq * (*my_pup_line).filtered_cov[sample_idx]),
+                               (uint32_t) (min_other_ref_freq * (*my_pup_line).filtered_cov[other_idx]),
+                               (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]),0);
         
         //save potential mutation
         copy_mpileup_line(saved_mut,my_pup_line);
@@ -716,9 +729,10 @@ int get_max_non_ref_freq(struct Mpileup_line* my_pup_line,double* val, int* idx,
 /*
     gets the lowest reference freq, except for 1 sample
 */
-int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip ){
+int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx ){
     //initialize value to large number
     *val = 42;
+    *other_idx=0;
     
     int i;
     //loop over samples
@@ -728,6 +742,7 @@ int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip
            (*my_pup_line).base_freqs[i][REFBASE] != ZERO_COV_FREQ ){ //not a 0 cov sample
                 //save value of min
             *val=(*my_pup_line).base_freqs[i][REFBASE];
+            *other_idx=i;
         }
     }
     return 0;
@@ -758,12 +773,12 @@ int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line
     //collect_unique_indels();
     
     double sample_indel_freq,max_other_indel_freq;
-    int sample_idx;
+    int sample_idx,other_idx;
     char mut_indel[MAX_INDEL_LEN];
     char mut_type[4];
     
     get_max_indel_freq(my_pup_line,&sample_indel_freq,&sample_idx,mut_indel,mut_type);
-    get_max_other_indel_freq(my_pup_line,&max_other_indel_freq,sample_idx);
+    get_max_other_indel_freq(my_pup_line,&max_other_indel_freq,sample_idx,&other_idx);
     
     if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
         max_other_indel_freq < 1-min_other_ref_freq_limit && //other sample indel freq lower than limit 
@@ -772,6 +787,12 @@ int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line
         strncpy((*my_pup_line).mut_indel,mut_indel,MAX_INDEL_LEN);
         (*my_pup_line).mut_sample_idx=sample_idx;
         strncpy((*my_pup_line).mut_type,mut_type,4);
+        
+        (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_indel_freq) * (*my_pup_line).cov[sample_idx]),
+                               (uint32_t) (sample_indel_freq * (*my_pup_line).cov[sample_idx]),
+                               (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),
+                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),0);
+        
         
         //save potential mutation
         copy_mpileup_line(saved_mut,my_pup_line);
@@ -817,9 +838,10 @@ int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, c
 /*
     gets the highest indel freq, except for 1 sample
 */
-int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip ){
+int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx ){
     //initialize value to negative number
     *val = - 42;
+    *other_idx=0;
     
     int i;
     //loop over samples
@@ -829,12 +851,14 @@ int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int i
            (*my_pup_line).ins_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
                 //save value of  max
             *val=(*my_pup_line).ins_freqs[i];
+            *other_idx=i;
         }
         if ( i != idx_2skip && // skip the mutated sample
            (*my_pup_line).del_freqs[i] > *val && // larger
            (*my_pup_line).del_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
                 //save value of max
             *val=(*my_pup_line).del_freqs[i];
+            *other_idx=i;
         }
     }
     return 0;

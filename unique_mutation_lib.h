@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 //maximum sample limit, change it if you have more samples
 #define MAXSAMPLE 1024
@@ -61,6 +62,7 @@ struct Mpileup_line
     //mutation info
     char mut_type[4];
     char mut_base;
+    double mut_fisher;
     char mut_indel[MAX_INDEL_LEN];
     int mut_sample_idx;
     
@@ -270,8 +272,12 @@ int get_max_non_ref_freq(struct Mpileup_line* my_pup_line,double* val, int* idx,
 /*
     gets the lowest reference freq, except for 1 sample
 */
-int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip );
+int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
 
+/*
+    Fisher's exact
+*/
+double fisher22(uint32_t m11, uint32_t m12, uint32_t m21, uint32_t m22, uint32_t midp);
 
 ////////////////////////////////////////////////////////////////////////////
 // Call indel 
@@ -293,5 +299,5 @@ int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, c
 /*
     gets the highest indel freq, except for 1 sample
 */
-int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip );
+int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
 
