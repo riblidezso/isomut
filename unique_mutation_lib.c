@@ -500,7 +500,8 @@ int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* 
     for(i= *mut_ptr-1;i>=0;i--){
         //filter position if it is too close to last gap
         if (strcmp(last_gap_chrom,potential_mut_lines[i].chrom) == 0 && //same chrom
-            last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_distance ){ // proximal gap
+            last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_distance && // proximal gap
+            last_gap_pos_start != potential_mut_lines[i].pos ){ // dont filter the gap itself 
             
             //delete this line
             //free resources
@@ -509,6 +510,7 @@ int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* 
             (*mut_ptr)--;
         }
         //if reached far enough we can break
+        // or if this is a called indel, hindsight filter has already been run
         else break;
     }
     return 0;
@@ -641,7 +643,7 @@ int print_mutation(struct Mpileup_line* my_pup_line){
 /*
     calls mutation from frequencies
 */
-int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
+int call_snv(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpileup_line* my_pup_line,
              double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
              char* last_gap_chrom, int last_gap_pos_end, int proximal_gap_min_distance){
     
@@ -667,20 +669,13 @@ int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* 
         (*my_pup_line).mut_sample_idx=sample_idx;
         strncpy((*my_pup_line).mut_type, "SNV\0",4);
        
-        /*
-        printf("%d %d %d %d\n",(uint32_t) ((1-sample_mut_freq) * (*my_pup_line).filtered_cov[sample_idx]),
-                               (uint32_t) (sample_mut_freq * (*my_pup_line).filtered_cov[sample_idx]),
-                               (uint32_t) (min_other_ref_freq * (*my_pup_line).filtered_cov[other_idx]),
-                               (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]));
-                               */
-        
         (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_mut_freq) * (*my_pup_line).filtered_cov[sample_idx]),
                                (uint32_t) (sample_mut_freq * (*my_pup_line).filtered_cov[sample_idx]),
                                (uint32_t) (min_other_ref_freq * (*my_pup_line).filtered_cov[other_idx]),
                                (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]),0);
         
         //save potential mutation
-        copy_mpileup_line(saved_mut,my_pup_line);
+        copy_mpileup_line(&(potential_mut_lines[*mut_ptr]),my_pup_line);
         (*mut_ptr)++;
     }
     return 0;        
@@ -757,7 +752,7 @@ int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip
 /*
     calls indels
 */
-int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
+int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpileup_line* my_pup_line,
              double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
              char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end, int proximal_gap_min_distance){
     
@@ -781,7 +776,7 @@ int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line
     get_max_other_indel_freq(my_pup_line,&max_other_indel_freq,sample_idx,&other_idx);
     
     if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
-        max_other_indel_freq < 1-min_other_ref_freq_limit && //other sample indel freq lower than limit 
+        max_other_indel_freq == 0 && //other sample indel freq == 0 , indel are suspicious  
         (*my_pup_line).filtered_cov[sample_idx] >= cov_limit ){ //coverage higher than limit
         
         strncpy((*my_pup_line).mut_indel,mut_indel,MAX_INDEL_LEN);
@@ -793,9 +788,12 @@ int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line
                                (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),
                                (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),0);
         
+        //proximal hindsight filtering for SNVs before
+        proximal_gap_hindsight_filter(potential_mut_lines,mut_ptr,(*my_pup_line).chrom,
+                                      (*my_pup_line).pos,proximal_gap_min_distance);
         
         //save potential mutation
-        copy_mpileup_line(saved_mut,my_pup_line);
+        copy_mpileup_line(&(potential_mut_lines[*mut_ptr]),my_pup_line);
         (*mut_ptr)++;
     }
     return 0;        

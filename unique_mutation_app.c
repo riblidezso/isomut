@@ -56,12 +56,12 @@ int main(int argc, char** argv)
         collect_indels_all_samples(&my_pup_line);
         
         //call snvs with forward prox gap filtering
-        call_snv(&(potential_mut_lines[mut_ptr]),&mut_ptr,&my_pup_line,
+        call_snv(potential_mut_lines,&mut_ptr,&my_pup_line,
                       min_sample_freq,max_other_freq,cov_limit,
                       last_gap_chrom,last_gap_pos_end,prox_gap_min_dist); 
         
         //call indels with forward prox gap filtering
-        call_indel(&(potential_mut_lines[mut_ptr]),&mut_ptr,&my_pup_line,
+        call_indel(potential_mut_lines,&mut_ptr,&my_pup_line,
                       min_sample_freq,max_other_freq,cov_limit,
                       last_gap_chrom,last_gap_pos_start,last_gap_pos_end,prox_gap_min_dist); 
         
