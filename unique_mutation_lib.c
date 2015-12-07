@@ -276,12 +276,14 @@ int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** resul
 int count_bases_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim){
     int i=0;
     for(i=0;i<(*my_pup_line).n_samples;i++){
-        count_bases((*my_pup_line).bases[i],(*my_pup_line).quals[i],
+        count_bases((*my_pup_line).bases[i],
+                    (*my_pup_line).quals[i],
                     (*my_pup_line).base_counts[i],
                     &((*my_pup_line).del_counts[i]),
                     &((*my_pup_line).ins_counts[i]),
                     &((*my_pup_line).filtered_cov[i]),
-                    (*my_pup_line).ref_nuq,baseq_lim);
+                    (*my_pup_line).ref_nuq,
+                    baseq_lim);
     }
     return 0;
 }
@@ -305,9 +307,9 @@ int count_bases(char* bases, char* quals,int* base_counts, int* del_count,
         if(bases[i] == '$' ) i++; //next
         else if(bases[i] == '^' ) {i+=2;} //jump next character (mapq too)
         //deletions
-        else if(bases[i]=='-' ) handle_deletion(bases,del_count,&i);
+        else if(bases[i]=='-' ) handle_deletion(bases,del_count,&i,quals[j-1],baseq_lim);
         //insetions
-        else if(bases[i]=='+' ) handle_insertion(bases,ins_count,&i); 
+        else if(bases[i]=='+' ) handle_insertion(bases,ins_count,&i,quals[j-1],baseq_lim); 
         //real base data
         else handle_base(bases,quals,base_counts,filtered_cov,&i,&j,baseq_lim);
     }
@@ -346,22 +348,22 @@ int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
 /* 
     parse a deletion from the bases and quals
 */
-int handle_deletion(char* bases,int* del_count,int* base_ptr){
+int handle_deletion(char* bases,int* del_count,int* base_ptr,char qual,int baseq_lim){
     char* offset;
-    (*del_count)++;
     int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
     (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
+    if(qual >= baseq_lim + 33 )(*del_count)++;
     return 0;
 }
 
 /* 
     parse an insertion from the bases and quals
 */
-int handle_insertion(char* bases,int* ins_count,int* base_ptr){
+int handle_insertion(char* bases,int* ins_count,int* base_ptr,char qual,int baseq_lim){
     char* offset;
-    (*ins_count)++;
     int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
     (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
+    if(qual >= baseq_lim + 33 ) (*ins_count)++;
     return 0;
 }
 
@@ -373,14 +375,16 @@ int handle_insertion(char* bases,int* ins_count,int* base_ptr){
 /*
     collect indels in all samples
 */
-int collect_indels_all_samples(struct Mpileup_line* my_pup_line){
+int collect_indels_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim){
     int i;
     for(i=0;i<(*my_pup_line).n_samples;i++){
         collect_indels((*my_pup_line).bases[i],
+                       (*my_pup_line).quals[i],
                        &(*my_pup_line).ins_bases[i],
                        (*my_pup_line).ins_counts[i],
                        &(*my_pup_line).del_bases[i],
-                       (*my_pup_line).del_counts[i]);
+                       (*my_pup_line).del_counts[i],
+                       baseq_lim);
     }
     return 0;
 }
@@ -388,16 +392,14 @@ int collect_indels_all_samples(struct Mpileup_line* my_pup_line){
 /*
     collect the inserted, and deleted bases
 */
-int collect_indels(char* bases, char*** ins_bases, int ins_count, char*** del_bases, int del_count){
-    //free memory allocated before
-    free_indel_bases(ins_bases,del_bases);
+int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count, 
+                   char*** del_bases,int del_count, int baseq_lim){
     //allocate new memory
-    *ins_bases = (char**) malloc( (ins_count+1) * sizeof(char*));
-    *del_bases = (char**) malloc( (del_count+1) * sizeof(char*));
-    (*ins_bases)[ins_count] = (*del_bases)[del_count] = NULL;
+    *ins_bases = (char**) malloc( (ins_count) * sizeof(char*));
+    *del_bases = (char**) malloc( (del_count) * sizeof(char*));
    
-    int i,del_c,ins_c; //pointers in data
-    i = del_c = ins_c = 0;
+    int i,j,del_c,ins_c; //pointers in data
+    i = j = del_c = ins_c = 0;
     char* offset;
     while(bases[i]!=0){
         //beginning and end of the read signs
@@ -406,50 +408,31 @@ int collect_indels(char* bases, char*** ins_bases, int ins_count, char*** del_ba
         //deletions
         else if(bases[i]=='-' ) {
             int indel_len=strtol(&bases[i+1],&offset,10);
-            (*del_bases)[del_c] = (char*) malloc( (indel_len+1) * sizeof(char));
-            memcpy((*del_bases)[del_c],offset,indel_len * sizeof(char));
-            (*del_bases)[del_c][indel_len]=0;
-            del_c++;
-            i+= offset-&bases[i+1] + indel_len;
+            i+= offset-&bases[i] + indel_len;
+            if( quals[j-1] >= baseq_lim + 33 ){
+                (*del_bases)[del_c] = (char*) malloc( (indel_len+1) * sizeof(char));
+                memcpy((*del_bases)[del_c],offset,indel_len * sizeof(char));
+                (*del_bases)[del_c][indel_len]=0;
+                del_c++;
+            }
         }
         //insertions
         else if(bases[i]=='+' ){
             int indel_len=strtol(&bases[i+1],&offset,10);
-            (*ins_bases)[ins_c] = (char*) malloc( (indel_len+1) * sizeof(char));
-            memcpy((*ins_bases)[ins_c],offset,indel_len * sizeof(char));
-            (*ins_bases)[ins_c][indel_len]=0;
-            ins_c++;
-            i+= offset-&bases[i+1] + indel_len;
+            i+= offset-&bases[i] + indel_len;
+            if( quals[j-1] >= baseq_lim + 33 ){
+                (*ins_bases)[ins_c] = (char*) malloc( (indel_len+1) * sizeof(char));
+                memcpy((*ins_bases)[ins_c],offset,indel_len * sizeof(char));
+                (*ins_bases)[ins_c][indel_len]=0;
+                ins_c++;
+            }
         }
         //real base data
-        else i++;
+        else {i++;j++;}
     }
     return 0;
 }
-   
-/*
-    free memory of indel bases
-*/
-int free_indel_bases(char*** ins_bases,char*** del_bases){
-    int i=0;
-    if (*ins_bases != NULL){
-        while ( (*ins_bases)[i] != NULL ) { //last pointer should be null
-            free((*ins_bases)[i]);
-            i++;
-        }
-        free(*ins_bases);
-    }
-    i=0;
-    if (*del_bases !=NULL){
-        while ( (*del_bases)[i] != NULL ) { //last pointer should be null
-            free((*del_bases)[i]);
-            i++;
-        }
-        free(*del_bases);
-    }
-    return 0;
-}
-
+  
 
 ////////////////////////////////////////////////////////////////////////////
 // Proximal gap filtering 
@@ -495,23 +478,35 @@ int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom,
 */
 int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* mut_ptr,
                                   char* last_gap_chrom,int last_gap_pos_start,
-                                 int proximal_gap_min_distance){
-    int i; 
+                                 int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel){
+    
+    //if position is a called indel the filter has been run
+    if( *mut_ptr > 0 &&  strcmp(last_gap_chrom,potential_mut_lines[(*mut_ptr) -1].chrom) == 0 &&
+            last_gap_pos_start == potential_mut_lines[(*mut_ptr) -1].pos ){
+        return 0;
+    }
+    int i,j; 
     for(i= *mut_ptr-1;i>=0;i--){
-        //filter position if it is too close to last gap
-        if (strcmp(last_gap_chrom,potential_mut_lines[i].chrom) == 0 && //same chrom
-            last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_distance && // proximal gap
-            last_gap_pos_start != potential_mut_lines[i].pos ){ // dont filter the gap itself 
-            
+        if (strcmp(last_gap_chrom,potential_mut_lines[i].chrom) != 0) return 0;
+        else if( strcmp(potential_mut_lines[i].mut_type,"SNV")==0 &&
+                    last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_dist_SNV ){
             //delete this line
-            //free resources
             free_mpileup_line(&(potential_mut_lines[i]));
-            //decrement mut_pointer
             (*mut_ptr)--;
         }
-        //if reached far enough we can break
-        // or if this is a called indel, hindsight filter has already been run
-        else break;
+        else if( ( strcmp(potential_mut_lines[i].mut_type,"INS")==0 || 
+                    strcmp(potential_mut_lines[i].mut_type,"DEL")==0 ) && 
+                    last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_dist_indel ){
+            //delete this line
+            free_mpileup_line(&(potential_mut_lines[i]));
+            (*mut_ptr)--;
+            //copy all later mutations one position ahead
+            for(j=i;j < *mut_ptr;j++){
+                copy_mpileup_line(&(potential_mut_lines[j]),&(potential_mut_lines[j+1]));
+                free_mpileup_line(&(potential_mut_lines[j+1]));
+            }
+            return 0;
+        }
     }
     return 0;
         
@@ -522,41 +517,28 @@ int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* 
 */
 int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
                              char* recent_chrom,int recent_pos,int* mut_ptr,
-                             int proximal_gap_min_distance){
-    int i,last_skipped; 
-    //look for the first which is accepted by hindsight proximal gap filtering
-    last_skipped=0;
-    for(i = (*mut_ptr)-1;i>=0;i--){
-        //skip position if it is too close to last gap
-        if (strcmp(recent_chrom,potential_mut_lines[i].chrom) == 0 && //same chrom
-            recent_pos - potential_mut_lines[i].pos  < proximal_gap_min_distance ){ // proximal gap possible
-            continue;
+                             int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel){
+    int i,j; 
+    for(i = 0; i<*mut_ptr;i++){
+        //check if mut is accepted already
+        if ( ( strcmp(recent_chrom,potential_mut_lines[i].chrom) != 0 ) || //other chrom
+             ( strcmp(potential_mut_lines[i].mut_type,"SNV")==0 && //SNV
+             recent_pos - potential_mut_lines[i].pos  > proximal_gap_min_dist_SNV ) ||
+             ((strcmp(potential_mut_lines[i].mut_type,"INS")==0 || //indel
+               strcmp(potential_mut_lines[i].mut_type,"DEL")==0 ) && 
+             recent_pos - potential_mut_lines[i].pos  > proximal_gap_min_dist_indel )){
+            //print and delete it
+            print_mutation(&(potential_mut_lines[i]));
+            free_mpileup_line(&(potential_mut_lines[i]));
+            (*mut_ptr)--;
+            //step everyone else ahead
+            for(j=i;j < *mut_ptr;j++){
+                copy_mpileup_line(&(potential_mut_lines[j]),&(potential_mut_lines[j+1]));
+                free_mpileup_line(&(potential_mut_lines[j+1]));
+            } 
+            i--;
         }
-       else{
-           last_skipped=i+1;
-           break;
-       }
     }
-    //if all of them skipped nothing to flush
-    if(last_skipped==0) return 0;
-    
-    //print the ones accepted
-    for(i=0;i<last_skipped;i++){
-        //print it and free resources
-        print_mutation(&(potential_mut_lines[i]));
-        free_mpileup_line(&(potential_mut_lines[i]));
-    }
-    
-    //copy the last ones to the first places (preserve order)
-    int new_mut_ptr=0;
-    for(i=last_skipped;i < *mut_ptr;i++){
-        //copy it into next empty place
-        copy_mpileup_line(&(potential_mut_lines[new_mut_ptr]),&(potential_mut_lines[i]));
-        //free resources
-        free_mpileup_line(&(potential_mut_lines[i]));
-        new_mut_ptr++;
-    }
-    *mut_ptr=new_mut_ptr;
     return 0;
 } 
         
@@ -753,13 +735,14 @@ int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip
     calls indels
 */
 int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpileup_line* my_pup_line,
-             double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
-             char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end, int proximal_gap_min_distance){
+               double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
+               char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end,
+               int prox_gap_min_dist_SNV,int prox_gap_min_dist_indel){
     
     //filter position if it is too close to last gap
     if ( last_gap_chrom != NULL && //no gap yet
          strcmp(last_gap_chrom,(*my_pup_line).chrom) == 0  && //same chrom
-         (*my_pup_line).pos - last_gap_pos_end < proximal_gap_min_distance  && // proximal gap
+         (*my_pup_line).pos - last_gap_pos_end < prox_gap_min_dist_indel  && // proximal gap
          (*my_pup_line).pos != last_gap_pos_start ){ //  dont filter for indel because of himself!
         return 0;
     }
@@ -790,7 +773,7 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
         
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(potential_mut_lines,mut_ptr,(*my_pup_line).chrom,
-                                      (*my_pup_line).pos,proximal_gap_min_distance);
+                                      (*my_pup_line).pos,prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
         
         //save potential mutation
         copy_mpileup_line(&(potential_mut_lines[*mut_ptr]),my_pup_line);

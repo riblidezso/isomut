@@ -70,7 +70,7 @@ struct Mpileup_line
 
 
 ////////////////////////////////////////////////////////////////////////////
-// initialize pileup struct
+// initializing, deleting, and copying pileup struct
 ////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -78,19 +78,11 @@ struct Mpileup_line
 */
 int init_mpileup_line(struct Mpileup_line* my_pup_line);
 
-////////////////////////////////////////////////////////////////////////////
-// free resources in pileup struct
-////////////////////////////////////////////////////////////////////////////
-
 /*
     frees all malloced objects in Mpileup_line struct, 
     and initializes them to NULL
 */
 int free_mpileup_line(struct Mpileup_line* my_pup_line);
-
-////////////////////////////////////////////////////////////////////////////
-// deep copy pileup struct
-////////////////////////////////////////////////////////////////////////////
 
 /*
     deep copy mpileup line
@@ -170,15 +162,12 @@ int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
 /* 
     parse a deletion from the bases and quals
 */
-int handle_deletion(char* bases,int* del_count,
-                   int* base_ptr);
+int handle_deletion(char* bases,int* del_count,int* base_ptr, char qual,int baseq_lim);
 
 /* 
     parse an insertion from the bases and quals
 */
-int handle_insertion(char* bases,int* ins_count,
-                   int* base_ptr);
-
+int handle_insertion(char* bases,int* ins_count,int* base_ptr, char qual,int baseq_lim);
 
 ////////////////////////////////////////////////////////////////////////////
 // Collect indels
@@ -187,13 +176,13 @@ int handle_insertion(char* bases,int* ins_count,
 /*
     collect indels in all samples
 */
-int collect_indels_all_samples(struct Mpileup_line* my_pup_line);
-
+int collect_indels_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim);
 
 /*
     collect the inserted, and deleted bases
 */
-int collect_indels(char* bases, char*** ins_bases, int ins_count, char*** del_bases, int del_count);
+int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count, 
+                   char*** del_bases,int del_count, int baseq_lim);
 
 /*
     free memory of indel bases
@@ -219,15 +208,14 @@ int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom,
 */
 int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* mut_ptr,
                                   char* last_gap_chrom,int last_gap_pos_start,
-                                 int proximal_gap_min_distance);
+                                 int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel);
     
 /*
     prints and deletes mutations, which have survived the hindsight proximal gap filtering
 */
 int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
                              char* recent_chrom,int recent_pos,int* mut_ptr,
-                             int proximal_gap_min_distance);
-
+                             int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel);
 
 ////////////////////////////////////////////////////////////////////////////
 // Calculate base + ins + del frequencies
@@ -286,9 +274,10 @@ double fisher22(uint32_t m11, uint32_t m12, uint32_t m21, uint32_t m22, uint32_t
 /*
     calls indels
 */
-int call_indel(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
-             double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
-             char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end, int proximal_gap_min_distance);
+int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpileup_line* my_pup_line,
+               double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
+               char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end,
+               int prox_gap_min_dist_SNV,int prox_gap_min_dist_indel);
 
 
 /*
