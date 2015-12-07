@@ -672,7 +672,7 @@ int call_snv(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpil
         (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_mut_freq) * (*my_pup_line).filtered_cov[sample_idx]),
                                (uint32_t) (sample_mut_freq * (*my_pup_line).filtered_cov[sample_idx]),
                                (uint32_t) (min_other_ref_freq * (*my_pup_line).filtered_cov[other_idx]),
-                               (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]),0);
+                               (uint32_t) ((1-min_other_ref_freq) * (*my_pup_line).filtered_cov[other_idx]),1);
         
         //save potential mutation
         copy_mpileup_line(&(potential_mut_lines[*mut_ptr]),my_pup_line);
@@ -786,7 +786,7 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
         (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_indel_freq) * (*my_pup_line).cov[sample_idx]),
                                (uint32_t) (sample_indel_freq * (*my_pup_line).cov[sample_idx]),
                                (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),
-                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),0);
+                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),1);
         
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(potential_mut_lines,mut_ptr,(*my_pup_line).chrom,
