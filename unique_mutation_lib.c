@@ -494,9 +494,11 @@ int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* 
             free_mpileup_line(&(potential_mut_lines[i]));
             (*mut_ptr)--;
         }
-        else if( ( strcmp(potential_mut_lines[i].mut_type,"INS")==0 || 
-                    strcmp(potential_mut_lines[i].mut_type,"DEL")==0 ) && 
-                    last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_dist_indel ){
+        else if( ( strcmp(potential_mut_lines[i].mut_type,"INS")==0 && //ins
+                   last_gap_pos_start - potential_mut_lines[i].pos  < proximal_gap_min_dist_indel)
+                   || ( strcmp(potential_mut_lines[i].mut_type,"DEL")==0  &&  //del
+                   last_gap_pos_start - potential_mut_lines[i].pos -  
+                   ((int)strlen(potential_mut_lines[i].mut_indel))  < proximal_gap_min_dist_indel) ){
             //delete this line
             free_mpileup_line(&(potential_mut_lines[i]));
             (*mut_ptr)--;
@@ -750,16 +752,16 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
     //todo
     //collect_unique_indels();
     
-    double sample_indel_freq,max_other_indel_freq;
+    double sample_indel_freq,min_other_noindel_freq;
     int sample_idx,other_idx;
     char mut_indel[MAX_INDEL_LEN];
     char mut_type[4];
     
     get_max_indel_freq(my_pup_line,&sample_indel_freq,&sample_idx,mut_indel,mut_type);
-    get_max_other_indel_freq(my_pup_line,&max_other_indel_freq,sample_idx,&other_idx);
+    get_min_other_noindel_freq(my_pup_line,&min_other_noindel_freq,sample_idx,&other_idx);
     
     if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
-        max_other_indel_freq == 0 && //other sample indel freq == 0 , indel are suspicious  
+        min_other_noindel_freq > min_other_ref_freq_limit && //  cleanness 
         (*my_pup_line).filtered_cov[sample_idx] >= cov_limit ){ //coverage higher than limit
         
         strncpy((*my_pup_line).mut_indel,mut_indel,MAX_INDEL_LEN);
@@ -768,8 +770,8 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
        
         (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_indel_freq) * (*my_pup_line).cov[sample_idx]),
                                (uint32_t) (sample_indel_freq * (*my_pup_line).cov[sample_idx]),
-                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),
-                               (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),1);
+                               (uint32_t) (min_other_noindel_freq * (*my_pup_line).cov[other_idx]),
+                               (uint32_t) ((1-min_other_noindel_freq) * (*my_pup_line).cov[other_idx]),1);
         
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(potential_mut_lines,mut_ptr,(*my_pup_line).chrom,
@@ -819,26 +821,21 @@ int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, c
 /*
     gets the highest indel freq, except for 1 sample
 */
-int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx ){
-    //initialize value to negative number
-    *val = - 42;
+int get_min_other_noindel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx ){
+    //initialize value to  large number
+    *val =  42;
     *other_idx=0;
     
     int i;
     //loop over samples
     for(i=0;i<(*my_pup_line).n_samples;i++){
+        double noindel_freq= (*my_pup_line).base_freqs[i][REFBASE] - (*my_pup_line).ins_freqs[i] - 
+                               (*my_pup_line).del_freqs[i];
         if ( i != idx_2skip && // skip the mutated sample
-           (*my_pup_line).ins_freqs[i] > *val && // larger
-           (*my_pup_line).ins_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
-                //save value of  max
-            *val=(*my_pup_line).ins_freqs[i];
-            *other_idx=i;
-        }
-        if ( i != idx_2skip && // skip the mutated sample
-           (*my_pup_line).del_freqs[i] > *val && // larger
-           (*my_pup_line).del_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
-                //save value of max
-            *val=(*my_pup_line).del_freqs[i];
+               noindel_freq < *val  && // smaller 
+               (*my_pup_line).ins_freqs[i] != ZERO_COV_FREQ ){ //not a 0 cov sample
+            //save value of min 
+            *val=noindel_freq;
             *other_idx=i;
         }
     }
