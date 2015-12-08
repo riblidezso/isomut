@@ -765,11 +765,11 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
         strncpy((*my_pup_line).mut_indel,mut_indel,MAX_INDEL_LEN);
         (*my_pup_line).mut_sample_idx=sample_idx;
         strncpy((*my_pup_line).mut_type,mut_type,4);
-        
+       
         (*my_pup_line).mut_fisher = fisher22((uint32_t) ((1-sample_indel_freq) * (*my_pup_line).cov[sample_idx]),
                                (uint32_t) (sample_indel_freq * (*my_pup_line).cov[sample_idx]),
-                               (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),
-                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),1);
+                               (uint32_t) ((1-max_other_indel_freq) * (*my_pup_line).cov[other_idx]),
+                               (uint32_t) (max_other_indel_freq * (*my_pup_line).cov[other_idx]),1);
         
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(potential_mut_lines,mut_ptr,(*my_pup_line).chrom,
