@@ -448,17 +448,23 @@ int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom,
     for(i=0;i<(*my_pup_line).n_samples;i++){
         //last gap is either an insertion start deletion start
         if ((*my_pup_line).ins_counts[i]!=0 || 
-            (*my_pup_line).del_counts[i]!=0 ){ 
-            //copy last chrom
+            (*my_pup_line).del_counts[i]!=0 ||
+            (*my_pup_line).filtered_cov[i]==0 ){
+            
+            //copy last chrom 
             if ( *last_gap_chrom != NULL ) free(*last_gap_chrom);
             *last_gap_chrom = (char*) malloc( (strlen((*my_pup_line).chrom)+1) * sizeof(char));
             strcpy(*last_gap_chrom,(*my_pup_line).chrom);
-            //pos 
+            //update last gap pos start
             *last_gap_pos_start = (*my_pup_line).pos;
-             if ( *last_gap_pos_start >= *last_gap_pos_end ){
+            //update last gap pos end for 0 coverage
+            if ( *last_gap_pos_start > *last_gap_pos_end && (*my_pup_line).filtered_cov[i]==0 ){
+                 *last_gap_pos_end = *last_gap_pos_start;
+             }
+            //update last gap pos end for indels 
+             if ( *last_gap_pos_start >= *last_gap_pos_end  && (*my_pup_line).ins_counts[i]!=0 ){
                  *last_gap_pos_end = *last_gap_pos_start + 1;
              }
-                 
             //gap pos end is hihger for deletions
             for (j=0;j < (*my_pup_line).del_counts[i];j++){
                 if(*last_gap_pos_end < (*my_pup_line).pos + 1 + (int) strlen((*my_pup_line).del_bases[i][j])){
@@ -749,8 +755,6 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
         return 0;
     }
     
-    //todo
-    //collect_unique_indels();
     
     double sample_indel_freq,min_other_noindel_freq;
     int sample_idx,other_idx;
@@ -759,6 +763,9 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
     
     get_max_indel_freq(my_pup_line,&sample_indel_freq,&sample_idx,mut_indel,mut_type);
     get_min_other_noindel_freq(my_pup_line,&min_other_noindel_freq,sample_idx,&other_idx);
+    
+    //todo??
+    //filter for non unique indels? 
     
     if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
         min_other_noindel_freq > min_other_ref_freq_limit && //  cleanness 
