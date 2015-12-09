@@ -288,5 +288,5 @@ int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, c
 /*
     gets the highest indel freq, except for 1 sample
 */
-int get_max_other_indel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
+int get_min_other_noindel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
 
