@@ -2,19 +2,36 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-
+    
+///////////////////////////////////////////////////////////////////////////
+// Constants 
+////////////////////////////////////////////////////////////////////////////    
+   
+//Size limitations
+    
 //maximum sample limit, change it if you have more samples
 #define MAXSAMPLE 1024
 //maximum length of an indel
 #define MAX_INDEL_LEN 128 
+   
     
-//bases are stored in arrays, element indices are defined here
-#define ABASE 0
-#define CBASE 1
-#define GBASE 2
-#define TBASE 3
-#define REFBASE 4
-#define DELBASE 5 
+//values for easier usage
+    
+//counts are stored in an array
+//element indices are defined here
+#define COV_IDX 0
+#define REF_IDX 1 
+#define A_IDX 2 
+#define C_IDX 3 
+#define G_IDX 4 
+#define T_IDX 5 
+#define DEL_IDX 6 
+#define INS_START_IDX 7 
+#define DEL_START_IDX  8 
+#define READ_START_IDX 9 
+#define READ_END_IDX 10 
+#define MAX_IDX 11
+   
 
 // 0 coverage samples also have some kind of "frequency"
 // should always check for this when working with the frequencies
@@ -28,12 +45,12 @@
 /*
     the mpileup struct
 */
-struct Mpileup_line
+struct mplp
 {
     //raw data
     char* raw_line;
     
-    //position level data
+    //position data
     char* chrom;
     int pos;
     char ref_nuq;
@@ -41,25 +58,18 @@ struct Mpileup_line
     //sample data
     int n_samples;
     
-    //sample level data
-    int cov[MAXSAMPLE];
-    char* bases[MAXSAMPLE];
-    char* quals[MAXSAMPLE];
+    //sample level raw data
+    int raw_cov[MAXSAMPLE];
+    char* raw_bases[MAXSAMPLE];
+    char* raw_quals[MAXSAMPLE];
     
     //more structured data
-    int base_counts[MAXSAMPLE][6];
-    int ins_counts[MAXSAMPLE];
-    int del_counts[MAXSAMPLE];
-   
+    int counts[MAXSAMPLE][MAX_IDX];
+    double freqs[MAXSAMPLE][MAX_IDX];
     char** ins_bases[MAXSAMPLE];
     char** del_bases[MAXSAMPLE];
     
-    double base_freqs[MAXSAMPLE][6];
-    double ins_freqs[MAXSAMPLE];
-    double del_freqs[MAXSAMPLE];
-    int filtered_cov[MAXSAMPLE];
-    
-    //mutation info
+    //mutation data 
     char mut_type[4];
     char mut_base;
     double mut_fisher;
@@ -76,18 +86,18 @@ struct Mpileup_line
 /*
     initializes pointers with NULL
 */
-int init_mpileup_line(struct Mpileup_line* my_pup_line);
+int init_mplp(struct mplp* my_mplp);
 
 /*
-    frees all malloced objects in Mpileup_line struct, 
+    frees all malloced objects in mplp struct, 
     and initializes them to NULL
 */
-int free_mpileup_line(struct Mpileup_line* my_pup_line);
+int free_mplp(struct mplp* my_mplp);
 
 /*
     deep copy mpileup line
 */
-int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from);
+int copy_mplp(struct mplp* target ,struct mplp* from);
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -95,29 +105,19 @@ int copy_mpileup_line(struct Mpileup_line* target ,struct Mpileup_line* from);
 ////////////////////////////////////////////////////////////////////////////
 
 /*
-    print the raw line
-*/
-int print_mpileup_raw_line(struct Mpileup_line* my_pup_line);
-
-
-/*
     printf formatted representation of mpileup line
 */
-int print_mpileup_line(struct Mpileup_line* my_pup_line);
+int print_mplp(struct mplp* my_mplp);
 
 
-/*
-    printf indels in mpileup line
-*/
-int print_mpileup_line_indels(struct Mpileup_line* my_pup_line);
-    
+////////////////////////////////////////////////////////////////////////////
+// process input mpileup line from samtools mpileup command output
+////////////////////////////////////////////////////////////////////////////
 
 /*
-    print pos
+      process input mpileup line from samtools mpileup command output
 */
-int print_mpileup_line_pos(struct Mpileup_line* my_pup_line);
-
-
+int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,int baseq_limit);
 
 ////////////////////////////////////////////////////////////////////////////
 // read pileup struct from mpileup line
@@ -132,7 +132,7 @@ int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** resul
 /*
     gets mpileup line from the char* line
 */
-int get_mpileup_line(struct Mpileup_line* my_pup_line,char* line, ssize_t read);
+int get_mplp(struct mplp* my_mplp,char* line, ssize_t read);
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -142,21 +142,18 @@ int get_mpileup_line(struct Mpileup_line* my_pup_line,char* line, ssize_t read);
 /*
     counts bases in all samples
 */
-int count_bases_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim);
+int count_bases_all_samples(struct mplp* my_mplp,int baseq_lim);
 
 
 /*
     counts bases in one sample
 */
-int count_bases(char* bases, char* quals,
-                int* base_counts,int* del_count, int* ins_count, int* filtered_cov,
-                char ref_base,int baseq_lim);
+int count_bases(char* bases,char* quals,int* counts,char ref_base,int baseq_lim);
 
 /* 
     parse a base from the bases and quals
 */
-int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
-                   int* base_ptr,int* qual_ptr,int baseq_lim);
+int handle_base(char* bases,char* quals,int* counts, int* filtered_cov,int* base_ptr,int* qual_ptr,int baseq_lim);
 
 
 /* 
@@ -169,6 +166,24 @@ int handle_deletion(char* bases,int* del_count,int* base_ptr, char qual,int base
 */
 int handle_insertion(char* bases,int* ins_count,int* base_ptr, char qual,int baseq_lim);
 
+
+////////////////////////////////////////////////////////////////////////////
+// Calculate base + ins + del frequencies
+////////////////////////////////////////////////////////////////////////////
+
+
+/*
+    calculate base freqs in all samples
+*/
+int calculate_freqs_all_samples(struct mplp* my_mplp);
+
+
+/*
+   calculate freqs in a sample
+*/
+int calculate_freqs(double* freqs,int* counts);
+
+
 ////////////////////////////////////////////////////////////////////////////
 // Collect indels
 ////////////////////////////////////////////////////////////////////////////
@@ -176,7 +191,7 @@ int handle_insertion(char* bases,int* ins_count,int* base_ptr, char qual,int bas
 /*
     collect indels in all samples
 */
-int collect_indels_all_samples(struct Mpileup_line* my_pup_line,int baseq_lim);
+int collect_indels_all_samples(struct mplp* my_mplp,int baseq_lim);
 
 /*
     collect the inserted, and deleted bases
@@ -192,47 +207,30 @@ int free_indel_bases(char*** ins_bases,char*** del_bases);
 
 
 ////////////////////////////////////////////////////////////////////////////
-// Proximal gap filtering related
+// Proximal gap filtering related functions
 ////////////////////////////////////////////////////////////////////////////
  
 
 /*
     updates last indel gap position if there is one at the position
 */
-int update_last_gap(struct Mpileup_line* my_pup_line, char** last_gap_chrom, 
+int update_last_gap(struct mplp* my_mplp, char** last_gap_chrom, 
                     int* last_gap_pos_start, int* last_gap_pos_end, int* is_gap);
 
 
 /*
     if position is gap delete all potential mutations too close
 */
-int proximal_gap_hindsight_filter(struct Mpileup_line* potential_mut_lines,int* mut_ptr,
+int proximal_gap_hindsight_filter(struct mplp* potential_mut_lines,int* mut_ptr,
                                   char* last_gap_chrom,int last_gap_pos_start,
                                  int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel);
     
 /*
     prints and deletes mutations, which have survived the hindsight proximal gap filtering
 */
-int flush_accepted_mutations(struct Mpileup_line* potential_mut_lines,
+int flush_accepted_mutations(struct mplp* potential_mut_lines,
                              char* recent_chrom,int recent_pos,int* mut_ptr,
                              int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel);
-
-////////////////////////////////////////////////////////////////////////////
-// Calculate base + ins + del frequencies
-////////////////////////////////////////////////////////////////////////////
-
-
-/*
-    calculate base freqs in all samples
-*/
-int calculate_freqs_all_samples(struct Mpileup_line* my_pup_line);
-
-
-/*
-   calculate freqs in a sample
-*/
-int calculate_freqs(double* base_freqs,int* base_counts,int ins_count,double* ins_freq,
-                    int del_count, double* del_freq, int coverage,int unfiltered_coverage);
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -242,25 +240,25 @@ int calculate_freqs(double* base_freqs,int* base_counts,int ins_count,double* in
 /*
     print mutation
 */
-int print_mutation(struct Mpileup_line* my_pup_line);
+int print_mutation(struct mplp* my_mplp);
 
 /*
     calls SNVs (single nucleotide mutations) from frequencies
 */
-int call_snv(struct Mpileup_line* saved_mut, int* mut_ptr, struct Mpileup_line* my_pup_line,
+int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
              double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
              char* last_gap_chrom, int last_gap_pos_end, int proximal_gap_min_distance);
 
 /*
     gets the highest not reference mut freq
 */
-int get_max_non_ref_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, char* mut_base);
+int get_max_non_ref_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_base);
 
 
 /*
     gets the lowest reference freq, except for 1 sample
 */
-int get_min_ref_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
+int get_min_ref_freq(struct mplp* my_mplp,double* val, int idx_2skip, int* other_idx );
 
 /*
     Fisher's exact
@@ -274,7 +272,7 @@ double fisher22(uint32_t m11, uint32_t m12, uint32_t m21, uint32_t m22, uint32_t
 /*
     calls indels
 */
-int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mpileup_line* my_pup_line,
+int call_indel(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
                double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
                char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end,
                int prox_gap_min_dist_SNV,int prox_gap_min_dist_indel);
@@ -283,10 +281,10 @@ int call_indel(struct Mpileup_line* potential_mut_lines, int* mut_ptr, struct Mp
 /*
     gets the highest indel freq 
 */
-int get_max_indel_freq(struct Mpileup_line* my_pup_line,double* val, int* idx, char* mut_base,char* mut_type);
+int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_indel,char* mut_type);
 
 /*
     gets the highest indel freq, except for 1 sample
 */
-int get_min_other_noindel_freq(struct Mpileup_line* my_pup_line,double* val, int idx_2skip, int* other_idx );
+int get_min_other_noindel_freq(struct mplp* my_mplp,double* val, int idx_2skip, int* other_idx );
 

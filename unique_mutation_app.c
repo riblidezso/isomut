@@ -21,14 +21,13 @@ int main(int argc, char** argv)
     //varaiables for reading a line
     char* line = NULL;
     size_t len = 0;
-    ssize_t chars_read;
+    ssize_t line_size;
     
     //potential mutation list
-    struct Mpileup_line* potential_mut_lines;
-    potential_mut_lines = (struct Mpileup_line*) malloc(MUT_BUFFER_SIZE * sizeof(struct Mpileup_line)) ;
+    struct mplp* potential_mutations = (struct mplp*) malloc(MUT_BUFFER_SIZE * sizeof(struct mplp)) ;
     //init all
     int i;
-    for( i=0;i<MUT_BUFFER_SIZE;i++) init_mpileup_line(&(potential_mut_lines[i]));
+    for( i=0;i<MUT_BUFFER_SIZE;i++) init_mplp(&potential_mutations[i]);
     int mut_ptr = i = 0; //pointer for potential mutation buffer 
     
     //variables for proximal gap filtering
@@ -41,62 +40,51 @@ int main(int argc, char** argv)
     printf("#sample\tchr\tpos\ttype\tfisher_p_value\tref\tmut\n");
     
     //loop over input lines
-    while ((chars_read = getline(&line, &len, stdin)) != -1) {
-       
-        //the pileup structure for the line being read
-        struct Mpileup_line my_pup_line;
-        init_mpileup_line(&my_pup_line);
+    while ((line_size = getline(&line, &len, stdin)) != -1) {
+        //the pileup line structure for the line being read
+        struct mplp my_mplp;
+        init_mplp(&my_mplp);
         
-        //read mpileup 
-        get_mpileup_line(&my_pup_line,line,chars_read);
-        //count bases
-        count_bases_all_samples(&my_pup_line,baseq_limit);
-        //calculate freqs
-        calculate_freqs_all_samples(&my_pup_line);
-       
-        //print_mpileup_line(&my_pup_line);
-        
-        //collect indels
-        collect_indels_all_samples(&my_pup_line,baseq_limit);
+        //build the struct from input line
+        process_mplp_input_line(&my_mplp,line,line_size,baseq_limit);
         
         //call snvs with forward prox gap filtering
-        call_snv(potential_mut_lines,&mut_ptr,&my_pup_line,
+        call_snv(potential_mutations,&mut_ptr,&my_mplp,
                  min_sample_freq,max_other_freq,cov_limit,
                  last_gap_chrom,last_gap_pos_end,prox_gap_min_dist_SNV); 
         
         //call indels with forward prox gap filtering
-        call_indel(potential_mut_lines,&mut_ptr,&my_pup_line,
+        call_indel(potential_mutations,&mut_ptr,&my_mplp,
                    min_sample_freq,max_other_freq,cov_limit,
                    last_gap_chrom,last_gap_pos_start,last_gap_pos_end,
                    prox_gap_min_dist_SNV,prox_gap_min_dist_indel); 
                    
         //update last gap position seen
-        update_last_gap(&my_pup_line,&last_gap_chrom,&last_gap_pos_start,&last_gap_pos_end,&is_gap);
+        update_last_gap(&my_mplp,&last_gap_chrom,&last_gap_pos_start,&last_gap_pos_end,&is_gap);
         
-        
-        //if a gap start at this pos, delete in hindsight all potential mutations too close
-        if( is_gap == 0 ) proximal_gap_hindsight_filter(potential_mut_lines,&mut_ptr,
+        //if a gap starts at this pos, delete in hindsight all potential mutations too close
+        if( is_gap == 0 ) proximal_gap_hindsight_filter(potential_mutations,&mut_ptr,
                                                         last_gap_chrom,last_gap_pos_start,
-                                                       prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
-                                                       
+                                                        prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
         
         //if potential mut container is full: flush and print the accepted mutations
-        // also flush occasionally 
-        if( mut_ptr == MUT_BUFFER_SIZE ){ // || my_pup_line.pos %1000 == 0 ){
-            flush_accepted_mutations(potential_mut_lines,my_pup_line.chrom,my_pup_line.pos,
+        if( mut_ptr == MUT_BUFFER_SIZE ){
+            flush_accepted_mutations(potential_mutations,my_mplp.chrom,my_mplp.pos,
                                      &mut_ptr,prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
         }
         
-        //free the struct
-        free_mpileup_line(&my_pup_line);
+        //free the memory allocated by the struct
+        free_mplp(&my_mplp);
     }
     
     //print mutations left at the very end
     for(i=0;i<mut_ptr;i++){ 
-        print_mutation(&(potential_mut_lines[i]));
-        free_mpileup_line( &(potential_mut_lines[i]) );
+        print_mutation(&potential_mutations[i]);
+        free_mplp(&potential_mutations[i]);
     }
+    
     //free resources
     free(line);
+    free(potential_mutations);
     return 0;
 }
