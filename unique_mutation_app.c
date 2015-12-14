@@ -13,10 +13,10 @@ int main(int argc, char** argv)
     }
     double min_sample_freq=strtod(argv[1],NULL);
     double max_other_freq=strtod(argv[2],NULL);
-    int cov_limit=strtol(argv[3],NULL,10);
-    int baseq_limit=strtol(argv[4],NULL,10);
-    int prox_gap_min_dist_SNV=strtol(argv[5],NULL,10);
-    int prox_gap_min_dist_indel=strtol(argv[6],NULL,10);
+    int cov_limit=(int) strtol(argv[3],NULL,10);
+    int baseq_limit=(int) strtol(argv[4],NULL,10);
+    int prox_gap_min_dist_SNV= (int) strtol(argv[5],NULL,10);
+    int prox_gap_min_dist_indel= (int) strtol(argv[6],NULL,10);
     
     //varaiables for reading a line
     char* line = NULL;
@@ -67,8 +67,8 @@ int main(int argc, char** argv)
                                                         last_gap_chrom,last_gap_pos_start,
                                                         prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
         
-        //if potential mut container is full: flush and print the accepted mutations
-        if( mut_ptr == MUT_BUFFER_SIZE ){
+        //if potential mut container is almost full: flush and print the accepted mutations
+        if( mut_ptr > MUT_BUFFER_SIZE - 2 ){
             flush_accepted_mutations(potential_mutations,my_mplp.chrom,my_mplp.pos,
                                      &mut_ptr,prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
         }

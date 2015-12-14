@@ -14,6 +14,8 @@ int init_mplp(struct mplp* my_mplp){
     my_mplp->raw_line=NULL;
     my_mplp->chrom=NULL;
     my_mplp->pos=-42;
+    my_mplp->n_samples=-42;
+    my_mplp->ref_nuq='E';
     
     for(i=0;i<MAXSAMPLE;i++){
         my_mplp->raw_bases[i]=NULL;
@@ -21,6 +23,14 @@ int init_mplp(struct mplp* my_mplp){
         my_mplp->ins_bases[i]=NULL;
         my_mplp->del_bases[i]=NULL;
     }
+    
+    
+    strcpy(my_mplp->mut_type,"NOT\0");
+    my_mplp->mut_base='E';
+    my_mplp->mut_fisher=-42;
+    for (i=0;i<MAX_INDEL_LEN;i++){my_mplp->mut_indel[i]='.';}
+    my_mplp->mut_sample_idx=-42;
+    
     return 0;
 }
 
@@ -192,8 +202,8 @@ int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,i
 int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){   
     //store the raw line too
     free(my_mplp->raw_line);
-    my_mplp->raw_line = (char*)malloc( (line_size) * sizeof(char));
-    memcpy(my_mplp->raw_line,line,(line_size) * sizeof(char));
+    my_mplp->raw_line = (char*)malloc( (line_size+1) * sizeof(char));
+    strcpy(my_mplp->raw_line,line);
     
     //temp buffer for reading those entries which will be formatted as not strings
     char* tmp_str=NULL;
@@ -204,7 +214,7 @@ int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){
         get_next_entry(line,line_size,&i,&(my_mplp->chrom));
         //position
         get_next_entry(line,line_size,&i,&tmp_str);
-        my_mplp->pos=strtol(tmp_str,NULL,10);
+        my_mplp->pos= (int) strtol(tmp_str,NULL,10);
         //ref nuq
         get_next_entry(line,line_size,&i,&tmp_str);
         my_mplp->ref_nuq=tmp_str[0];
@@ -214,7 +224,7 @@ int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){
         while(i<line_size){
             //coverage
             get_next_entry(line,line_size,&i,&tmp_str);
-            my_mplp->raw_cov[temp_sample]=strtol(tmp_str,NULL,10);
+            my_mplp->raw_cov[temp_sample]= (int) strtol(tmp_str,NULL,10);
             //bases
             get_next_entry(line,line_size,&i,&(my_mplp->raw_bases[temp_sample]));
             //quals
@@ -234,9 +244,9 @@ int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){
 */
 int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** result){
     int c,c0;
-    c0 = *pointer;
+    c0 = (int) *pointer;
     while(line[*pointer]!='\t' && *pointer<line_size)(*pointer)++;
-    c = *pointer-c0;
+    c = (int) *pointer-c0;
     (*pointer)++;
     
     if(*result != NULL) free(*result);
@@ -323,7 +333,7 @@ int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
 */
 int handle_deletion(char* bases,int* del_count,int* base_ptr,char qual,int baseq_lim){
     char* offset;
-    int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
+    int indel_len= (int) strtol(&bases[*base_ptr+1],&offset,10);
     (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
     if(qual >= baseq_lim + 33 )(*del_count)++;
     return 0;
@@ -334,7 +344,7 @@ int handle_deletion(char* bases,int* del_count,int* base_ptr,char qual,int baseq
 */
 int handle_insertion(char* bases,int* ins_count,int* base_ptr,char qual,int baseq_lim){
     char* offset;
-    int indel_len=strtol(&bases[*base_ptr+1],&offset,10);
+    int indel_len= (int) strtol(&bases[*base_ptr+1],&offset,10);
     (*base_ptr)+= offset-&bases[*base_ptr] + indel_len;
     if(qual >= baseq_lim + 33 ) (*ins_count)++;
     return 0;
@@ -421,7 +431,7 @@ int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count,
         else if(bases[i] == '^' ) i+=2; //jump next character (mapq too)
         //deletions
         else if(bases[i]=='-' ) {
-            int indel_len=strtol(&bases[i+1],&offset,10);
+            int indel_len= (int) strtol(&bases[i+1],&offset,10);
             i+= offset-&bases[i] + indel_len;
             if( quals[j-1] >= baseq_lim + 33 ){
                 (*del_bases)[del_c] = (char*) malloc( (indel_len+1) * sizeof(char));
@@ -432,7 +442,7 @@ int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count,
         }
         //insertions
         else if(bases[i]=='+' ){
-            int indel_len=strtol(&bases[i+1],&offset,10);
+            int indel_len= (int) strtol(&bases[i+1],&offset,10);
             i+= offset-&bases[i] + indel_len;
             if( quals[j-1] >= baseq_lim + 33 ){
                 (*ins_bases)[ins_c] = (char*) malloc( (indel_len+1) * sizeof(char));
