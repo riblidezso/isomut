@@ -37,9 +37,12 @@ int main(int argc, char** argv)
     int is_gap = 1 ; // 0 yes, 1 no
     
     //print header
-    printf("#sample\tchr\tpos\ttype\tfisher_p_value\tref\tmut\n");
+    printf("#sample\tchr\tpos\ttype\tscore\tref\tmut\tdepth\tmut_freq\n");
     
+    //FILE* test_f = fopen("/Users/ribli/unique_mutation/data2/dbg.input","r");
+
     //loop over input lines
+    //while ((line_size = getline(&line, &len, test_f)) != -1) {
     while ((line_size = getline(&line, &len, stdin)) != -1) {
         //the pileup line structure for the line being read
         struct mplp my_mplp;

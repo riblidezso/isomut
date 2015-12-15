@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
     
 ///////////////////////////////////////////////////////////////////////////
 // Constants 
@@ -72,9 +73,10 @@ struct mplp
     //mutation data 
     char mut_type[4];
     char mut_base;
-    double mut_fisher;
+    double mut_score;
     char mut_indel[MAX_INDEL_LEN];
     int mut_sample_idx;
+    double mut_freq;
     
 };
 

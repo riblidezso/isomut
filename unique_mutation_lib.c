@@ -27,9 +27,10 @@ int init_mplp(struct mplp* my_mplp){
     
     strcpy(my_mplp->mut_type,"NOT\0");
     my_mplp->mut_base='E';
-    my_mplp->mut_fisher=-42;
+    my_mplp->mut_score=-42;
     for (i=0;i<MAX_INDEL_LEN;i++){my_mplp->mut_indel[i]='.';}
     my_mplp->mut_sample_idx=-42;
+    my_mplp->mut_freq=-42;
     
     return 0;
 }
@@ -92,7 +93,8 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
     ///copy the mutation related data
     target->mut_base=from->mut_base;
     target->mut_sample_idx=from->mut_sample_idx;
-    target->mut_fisher=from->mut_fisher;
+    target->mut_score=from->mut_score;
+    target->mut_freq=from->mut_freq;
     strcpy( target->mut_type, from->mut_type);
     strncpy( target->mut_indel, from->mut_indel,MAX_INDEL_LEN);
     //loop over sample level data
@@ -589,16 +591,40 @@ int flush_accepted_mutations(struct mplp* saved_mutations,
 */
 int print_mutation(struct mplp* my_mplp){
     if ( strcmp(my_mplp->mut_type,"SNV") ==0 ){
-        printf("%d\t%s\t%d\t%s\t%e\t%c\t%c\n",my_mplp->mut_sample_idx,my_mplp->chrom,my_mplp->pos,
-                my_mplp->mut_type,my_mplp->mut_fisher,my_mplp->ref_nuq,my_mplp->mut_base);
+        printf("%d\t%s\t%d\t%s\t%.2f\t%c\t%c\t%d\t%.2f\n",
+               my_mplp->mut_sample_idx,
+               my_mplp->chrom,
+               my_mplp->pos,
+               my_mplp->mut_type,
+               my_mplp->mut_score,
+               my_mplp->ref_nuq,
+               my_mplp->mut_base,
+               my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
+               my_mplp->mut_freq);
     }
     if ( strcmp(my_mplp->mut_type,"INS") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%e\t-\t%s\n",my_mplp->mut_sample_idx,my_mplp->chrom,my_mplp->pos,
-                my_mplp->mut_type,my_mplp->mut_fisher,my_mplp->mut_indel);
+        printf("%d\t%s\t%d\t%s\t%.2f\t-\t%s\t%d\t%.2f\n",
+               my_mplp->mut_sample_idx,
+               my_mplp->chrom,
+               my_mplp->pos,
+               my_mplp->mut_type,
+               my_mplp->mut_score,
+               my_mplp->mut_indel,
+               my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
+               my_mplp->mut_freq);
+
     }
     if ( strcmp(my_mplp->mut_type,"DEL") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%e\t%s\t-\n",my_mplp->mut_sample_idx,my_mplp->chrom,my_mplp->pos,
-                my_mplp->mut_type,my_mplp->mut_fisher,my_mplp->mut_indel);
+        printf("%d\t%s\t%d\t%s\t%.2f\t%s\t-\t%d\t%.2f\n",
+               my_mplp->mut_sample_idx,
+               my_mplp->chrom,
+               my_mplp->pos,
+               my_mplp->mut_type,
+               my_mplp->mut_score,
+               my_mplp->mut_indel,
+               my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
+               my_mplp->mut_freq);
+
     }
     return 0;
 }
@@ -635,12 +661,13 @@ int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
         
         my_mplp->mut_base=mut_base;
         my_mplp->mut_sample_idx=sample_idx;
+        my_mplp->mut_freq=sample_mut_freq;
         strncpy(my_mplp->mut_type, "SNV\0",4);
        
-        my_mplp->mut_fisher = fisher22((uint32_t) ((1-sample_mut_freq) * my_mplp->counts[sample_idx][COV_IDX]),
+        my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_mut_freq) * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (sample_mut_freq * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (min_other_ref_freq * my_mplp->counts[other_idx][COV_IDX]),
-                               (uint32_t) ((1-min_other_ref_freq) * my_mplp->counts[other_idx][COV_IDX]),1);
+                               (uint32_t) ((1-min_other_ref_freq) * my_mplp->counts[other_idx][COV_IDX]),1));
         
         //save potential mutation
         copy_mplp(&saved_mutations[*mut_ptr],my_mplp);
@@ -751,12 +778,13 @@ int call_indel(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
         
         strncpy(my_mplp->mut_indel,mut_indel,MAX_INDEL_LEN);
         my_mplp->mut_sample_idx=sample_idx;
+        my_mplp->mut_freq=sample_indel_freq;
         strncpy(my_mplp->mut_type,mut_type,4);
        
-        my_mplp->mut_fisher = fisher22((uint32_t) ((1-sample_indel_freq) * my_mplp->counts[sample_idx][COV_IDX]),
+        my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_indel_freq) * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (sample_indel_freq * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (min_other_noindel_freq * my_mplp->counts[other_idx][COV_IDX]),
-                               (uint32_t) ((1-min_other_noindel_freq) *my_mplp->counts[other_idx][COV_IDX]),1);
+                               (uint32_t) ((1-min_other_noindel_freq) *my_mplp->counts[other_idx][COV_IDX]),1));
         
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(saved_mutations,mut_ptr,my_mplp->chrom,
