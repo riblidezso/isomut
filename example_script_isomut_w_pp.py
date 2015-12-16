@@ -3,10 +3,10 @@
 # importing the wrapper
 #################################################
 #add path for isomput_parallel.py if its not here
-#import sys
-#sys.path.append('path for isomut_parallel.py')
+import sys,os,subprocess
+sys.path.append(os.getcwd())
 #load the parallel wraooer function
-from isomut_parallel import run_isomut_in_parallel
+from isomut_wrappers import run_isomut_with_pp
 
 #################################################
 # defining administrative parameters
@@ -22,7 +22,7 @@ params['n_conc_blocks']=4
 params['ref_fasta']="/home/ribli/input/index/gallus/Gallus_gallus.Galgal4.74.dna.toplevel.fa"
 #input dir output dir
 params['input_dir']='/nagyvinyok/adat86/sotejedlik/ribli/dt40/test_bams/'
-params['output_dir']='parall_test_output/'
+params['output_dir']='output/'
 #the bam files used
 params['bam_filenames']=['DS014.bam', 'DS051.bam', 'DS052.bam', 'DS053.bam', 'DS054.bam', 'DS055.bam',
          'DS056.bam', 'DS057.bam', 'DS058.bam', 'DS101.bam', 'DS102.bam', 'DS103.bam']
@@ -31,9 +31,9 @@ params['bam_filenames']=['DS014.bam', 'DS051.bam', 'DS052.bam', 'DS053.bam', 'DS
 # defining mutation calling parameters
 #    default values here ...
 #################################################
-params['min_sample_freq']=0.1
-params['min_other_ref_freq']=0.8
-params['cov_limit']=3
+params['min_sample_freq']=0.31
+params['min_other_ref_freq']=0.93
+params['cov_limit']=7
 params['base_quality_limit']=30
 params['min_gap_dist_snv']=0
 params['min_gap_dist_indel']=20
@@ -41,4 +41,4 @@ params['min_gap_dist_indel']=20
 #################################################
 # and finally run it
 #################################################
-run_isomut_in_parallel(params)
+run_isomut_with_pp(params)

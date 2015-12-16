@@ -54,22 +54,32 @@ def run_isomut_on_block(chrom,from_pos,to_pos,
                          cov_limit=10,
                          base_quality_limit=30,
                          min_gap_dist_snv=10,
-                         min_gap_dist_indel=20):
+                         min_gap_dist_indel=20,
+                         bedfile=None,
+                         samtools_flags=' -B '):
     #build the command
-    cmd=' samtools  mpileup -B ' 
+    cmd=' samtools  mpileup ' + samtools_flags
     cmd+=' -f ' +ref_genome 
     cmd+=' -r '+chrom+':'+str(from_pos)+'-'+str(to_pos)+' '
+    if(bedfile!=None):
+        cmd+=' -l '+bedfile+' '
     for bam_file in bam_files:
-        cmd+=input_dir+bam_file +' '
-    cmd+=' | ./unique_mutation_app '
+        cmd+=input_dir+bam_file +' '    
+    cmd+=' | ./isomut '
     cmd+=' '.join(map(str,[min_sample_freq,min_other_ref_freq,cov_limit,
                            base_quality_limit,min_gap_dist_snv,min_gap_dist_indel])) +' '
     cmd+=' > ' +output_dir+'/'+ (chrom)+'_'+str(from_pos)+'_'+str(to_pos)+'_mut.csv  '
     
-    return subprocess.check_output(cmd,shell=True,stderr=subprocess.STDOUT)
+    return subprocess.call(cmd,shell=True,stderr=subprocess.STDOUT)
 
 
 def run_isomut_in_parallel(params):
+    #check for bedfile argument:
+    if (not params.has_key('bedfile')):
+        params['bedfile']=None
+    if (not params.has_key('samtools_flags')):
+        params['samtools_flags']=' -B '
+        
     #define blocks and create args
     blocks=define_parallel_blocks(params['ref_fasta'],params['n_min_block'])
     args=[]
@@ -79,7 +89,8 @@ def run_isomut_in_parallel(params):
                      params['output_dir'],params['ref_fasta'],
                      params['min_sample_freq'],params['min_other_ref_freq'],
                      params['cov_limit'], params['base_quality_limit'],
-                     params['min_gap_dist_snv'],params['min_gap_dist_indel']])
+                     params['min_gap_dist_snv'],params['min_gap_dist_indel'],
+                     params['bedfile'],params['samtools_flags']])
         
     #create dir
     if(glob.glob(params['output_dir'])==[]):
@@ -114,4 +125,42 @@ def run_isomut_in_parallel(params):
                 finished = False
         time.sleep(0.1)
         
+    print '\nDone'
+    
+    
+def run_isomut_with_pp(params):
+    #run first
+    run_isomut_in_parallel(params)
+
+    # collect indels
+    subprocess.call('cat ' +params['output_dir']+'/*.csv | head -n 1 >  \
+    '+params['output_dir']+'/all_indels.isomut',shell=True)
+    subprocess.call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
+    grep -v SNV  | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_indels.isomut',shell=True)
+
+    # collect SNVs for post processing
+    subprocess.call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
+    grep SNV | sort -n -k2,2 -k3,3 | cut -f 2,3 >'+params['output_dir']+'/temp.bed',shell=True)
+
+    # clean everything else
+    subprocess.call('rm '+params['output_dir']+'/*.csv',shell=True)
+
+    # run postprocessing
+    params['base_quality_limit']= 13
+    params['min_other_ref_freq']= 0
+    params['samtools_flags'] = ' ' 
+    params['bedfile']=params['output_dir']+'/temp.bed'
+    run_isomut_in_parallel(params)
+
+
+    # collect SNVs
+    subprocess.call('cat ' +params['output_dir']+'/*.csv | head -n 1 >  \
+    '+params['output_dir']+'/all_SNVs.isomut',shell=True)
+    subprocess.call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
+    grep SNV | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_SNVs.isomut',shell=True)
+
+    #clean up
+    subprocess.call(['rm',params['bedfile']])
+    subprocess.call('rm '+params['output_dir']+'/*.csv',shell=True)
+    
     print '\nDone'
