@@ -77,6 +77,7 @@ struct mplp
     char mut_indel[MAX_INDEL_LEN];
     int mut_sample_idx;
     double mut_freq;
+    double cleanliness;
     
 };
 

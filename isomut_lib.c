@@ -31,6 +31,7 @@ int init_mplp(struct mplp* my_mplp){
     for (i=0;i<MAX_INDEL_LEN;i++){my_mplp->mut_indel[i]='.';}
     my_mplp->mut_sample_idx=-42;
     my_mplp->mut_freq=-42;
+    my_mplp->cleanliness=-42;
     
     return 0;
 }
@@ -95,6 +96,7 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
     target->mut_sample_idx=from->mut_sample_idx;
     target->mut_score=from->mut_score;
     target->mut_freq=from->mut_freq;
+    target->cleanliness=from->cleanliness;
     strcpy( target->mut_type, from->mut_type);
     strncpy( target->mut_indel, from->mut_indel,MAX_INDEL_LEN);
     //loop over sample level data
@@ -591,7 +593,7 @@ int flush_accepted_mutations(struct mplp* saved_mutations,
 */
 int print_mutation(struct mplp* my_mplp){
     if ( strcmp(my_mplp->mut_type,"SNV") ==0 ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t%c\t%c\t%d\t%.2f\n",
+        printf("%d\t%s\t%d\t%s\t%.2f\t%c\t%c\t%d\t%.3f\t%.3f\n",
                my_mplp->mut_sample_idx,
                my_mplp->chrom,
                my_mplp->pos,
@@ -600,10 +602,11 @@ int print_mutation(struct mplp* my_mplp){
                my_mplp->ref_nuq,
                my_mplp->mut_base,
                my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
-               my_mplp->mut_freq);
+               my_mplp->mut_freq,
+               my_mplp->cleanliness);
     }
     if ( strcmp(my_mplp->mut_type,"INS") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t-\t%s\t%d\t%.2f\n",
+        printf("%d\t%s\t%d\t%s\t%.2f\t-\t%s\t%d\t%.3f\t%.3f\n",
                my_mplp->mut_sample_idx,
                my_mplp->chrom,
                my_mplp->pos,
@@ -611,11 +614,12 @@ int print_mutation(struct mplp* my_mplp){
                my_mplp->mut_score,
                my_mplp->mut_indel,
                my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
-               my_mplp->mut_freq);
+               my_mplp->mut_freq,
+               my_mplp->cleanliness);
 
     }
     if ( strcmp(my_mplp->mut_type,"DEL") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t%s\t-\t%d\t%.2f\n",
+        printf("%d\t%s\t%d\t%s\t%.2f\t%s\t-\t%d\t%.3f\t%.3f\n",
                my_mplp->mut_sample_idx,
                my_mplp->chrom,
                my_mplp->pos,
@@ -623,7 +627,8 @@ int print_mutation(struct mplp* my_mplp){
                my_mplp->mut_score,
                my_mplp->mut_indel,
                my_mplp->counts[my_mplp->mut_sample_idx][COV_IDX],
-               my_mplp->mut_freq);
+               my_mplp->mut_freq,
+               my_mplp->cleanliness);
 
     }
     return 0;
@@ -662,6 +667,7 @@ int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
         my_mplp->mut_base=mut_base;
         my_mplp->mut_sample_idx=sample_idx;
         my_mplp->mut_freq=sample_mut_freq;
+        my_mplp->cleanliness=min_other_ref_freq;
         strncpy(my_mplp->mut_type, "SNV\0",4);
        
         my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_mut_freq) * my_mplp->counts[sample_idx][COV_IDX]),
@@ -779,6 +785,7 @@ int call_indel(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
         strncpy(my_mplp->mut_indel,mut_indel,MAX_INDEL_LEN);
         my_mplp->mut_sample_idx=sample_idx;
         my_mplp->mut_freq=sample_indel_freq;
+        my_mplp->cleanliness=min_other_noindel_freq;
         strncpy(my_mplp->mut_type,mut_type,4);
        
         my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_indel_freq) * my_mplp->counts[sample_idx][COV_IDX]),

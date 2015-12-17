@@ -37,7 +37,7 @@ int main(int argc, char** argv)
     int is_gap = 1 ; // 0 yes, 1 no
     
     //print header
-    printf("#sample\tchr\tpos\ttype\tscore\tref\tmut\tdepth\tmut_freq\n");
+    printf("#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n");
     
     //FILE* test_f = fopen("/Users/ribli/unique_mutation/data2/dbg.input","r");
     
