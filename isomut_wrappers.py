@@ -132,10 +132,13 @@ def run_isomut_with_pp(params):
     #run first
     run_isomut_in_parallel(params)
 
+
+
     # collect indels
+    header="#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n"
     with open(params['output_dir']+'/all_indels.isomut','w') as indel_f  : 
         #write header
-        indel_f.write("#sample\tchr\tpos\ttype\tscore\tref\tmut\tdepth\tmut_freq\n")
+        indel_f.write(header)
     #copy all indel lines except the header and sort them by chr, pos
     subprocess.check_call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
     grep -v SNV  | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_indels.isomut',shell=True)
@@ -158,7 +161,7 @@ def run_isomut_with_pp(params):
 
     # collect SNVs
     with open(params['output_dir']+'/all_SNVs.isomut','w') as snv_f:
-        snv_f.write("#sample\tchr\tpos\ttype\tscore\tref\tmut\tdepth\tmut_freq\n")
+        snv_f.write(header)
     subprocess.check_call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
     grep SNV | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_SNVs.isomut',shell=True)
 
