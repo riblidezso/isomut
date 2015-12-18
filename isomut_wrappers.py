@@ -128,7 +128,7 @@ def run_isomut_in_parallel(params):
     
 def run_isomut_with_pp(params):
     #run first
-    eun_isomut_in_parallel(params)
+    run_isomut_in_parallel(params)
 
 
     # collect indels
