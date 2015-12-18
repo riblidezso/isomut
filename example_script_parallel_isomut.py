@@ -27,6 +27,10 @@ params['output_dir']='parall_test_output/'
 params['bam_filenames']=['DS014.bam', 'DS051.bam', 'DS052.bam', 'DS053.bam', 'DS054.bam', 'DS055.bam',
          'DS056.bam', 'DS057.bam', 'DS058.bam', 'DS101.bam', 'DS102.bam', 'DS103.bam']
 
+#limit chromosomes (for references with many scaffolds)
+# just comment/delete this line if you want to analyze all contigs in the ref genome
+params['chromosomes']=map(str,range(1,29))+ ['32','W','Z','MT']
+
 #################################################
 # defining mutation calling parameters
 #    default values here ...
