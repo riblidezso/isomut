@@ -1,6 +1,6 @@
-from Bio import SeqIO
-from Bio.Seq import Seq
-import multiprocessing,sys,time
+import multiprocessing
+import sys
+import time
 import subprocess
 import glob
 
@@ -12,17 +12,21 @@ import glob
 def define_parallel_blocks(ref_genome,min_block_no,chrom_list):
     print 'Defining parallell blocks ...'
     sys.stdout.flush()
-    #genome lengths
+    
+    #check faidx (it has to be there because mpileup needs it too)
+    if(glob.glob(ref_genome+'.fai')==[]):
+        print 'Error please create faidx file for the reference genome'
+        exit(1)
+    
+    #collect the length of chromosomes from the faidx file
     chroms,lens=[],[]
-
-    #parsing fasta file
-    for seqin in SeqIO.parse(ref_genome,"fasta"):
-	#if chromosome list given only use those chromosomes
-        if (chrom_list == None or seqin.id in set(chrom_list)):
-            #save lengths
-            chroms.append(seqin.id)
-	    lens.append(len(seqin.seq))
-
+    with open(ref_genome+'.fai') as f_h:
+        for line in f_h:
+            chrom,leng=line.split('\t')[0],line.split('\t')[1]
+            if (chrom_list == None or chrom in set(chrom_list)):
+                chroms.append(chrom)
+                lens.append(int(leng))
+            
     #set maximum block size
     BLOCKSIZE=(sum(lens)/min_block_no)
 

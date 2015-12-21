@@ -43,7 +43,6 @@ Testing and demonstration:
 ### Dependencies
 
 - samtools needs to be installed
-- for parallel execution BioPython is used for the calculation of the regions 
 
 
 ---
