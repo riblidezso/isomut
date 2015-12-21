@@ -8,7 +8,7 @@ This is a C implementation of the mutation calling algorith described here (arti
 ### For the impatient:
 
 - compile IsoMut
-- modify the pathnames for your data in example_script_isomut_w_pp.py, and run the script
+- modify the pathnames for your data in isomut_example_script.py, and run the script
 - check out test_isomut_w_pp.ipynb, for necessities, and details
 
 ---
@@ -16,9 +16,9 @@ This is a C implementation of the mutation calling algorith described here (arti
 ### Compile IsoMut:
 
 ```
+cd src/
 gcc -O3 -c isomut_lib.c fisher.c  -W -Wall
 gcc -O3 -o isomut isomut.c isomut_lib.o  fisher.o -lm -W -Wall
-
 ```
 
 ---
@@ -26,17 +26,16 @@ gcc -O3 -o isomut isomut.c isomut_lib.o  fisher.o -lm -W -Wall
 ### Files:
 
 For the standalone C application:
-- isomut_lib.h isomut_lib.c  the library
-- isomut.c the application
+- src/isomut_lib.h src/isomut_lib.c  the library
+- src/isomut.c the application
 
 For the parallel wrapper:
-- isomut_wrappers.py the python functions for parallel execution, and BAQ filtering
-- example_script_isomut_w_pp.py, example_script_parallel_isomut.py, example scripts  to run wrappaers
+- src/isomut_wrappers.py the python functions for parallel execution, and BAQ filtering
+- ismout_example_script.py, example script  to run IsoMut
 
 Testing and demonstration:
-- test.ipynb jupyter notebook showing a test run for the standalone C program
-- test_isomut_parallel.ipynb jupyter notebook showing a parallel test run
-- test_isomut_parallel.ipynb jupyter notebook showing a parallel test run, with the BAQ based filtering
+- tests/test.ipynb jupyter notebook showing a test run for the standalone C program
+- tests/test_isomut_parallel.ipynb jupyter notebook showing a parallel test run, with the BAQ based filtering
 
 ---
 
