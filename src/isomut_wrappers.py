@@ -10,7 +10,7 @@ import glob
 #          - gives back more than min_block_no blocks!
 #
 def define_parallel_blocks(ref_genome,min_block_no,chrom_list):
-    print 'Defining parallell blocks ...'
+    print 'Defining parallel blocks ...'
     sys.stdout.flush()
     
     #check faidx (it has to be there because mpileup needs it too)
@@ -65,10 +65,10 @@ def run_isomut_on_block(chrom,from_pos,to_pos,
         cmd+=' -l '+bedfile+' '
     for bam_file in bam_files:
         cmd+=input_dir+bam_file +' '    
-    cmd+=' 2> samtools.log | isomut '
+    cmd+=' 2>> '+output_dir+'/samtools.log | isomut '
     cmd+=' '.join(map(str,[min_sample_freq,min_other_ref_freq,cov_limit,
                            base_quality_limit,min_gap_dist_snv,min_gap_dist_indel])) +' '
-    cmd+=' > ' +output_dir+'/'+ (chrom)+'_'+str(from_pos)+'_'+str(to_pos)+'_mut.csv  '
+    cmd+=' > ' +output_dir+'/tmp_isomut_'+ chrom+'_'+str(from_pos)+'_'+str(to_pos)+'_mut.csv  '
     
     return subprocess.check_call(cmd,shell=True)
 
@@ -135,28 +135,27 @@ def run_isomut(params):
     #run first
     run_isomut_in_parallel(params)
 
-
     # collect indels
     header="#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n"
     with open(params['output_dir']+'/all_indels.isomut','w') as indel_f  : 
         #write header
         indel_f.write(header)
     #copy all indel lines except the header and sort them by chr, pos
-    subprocess.check_call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
+    subprocess.check_call('cat ' +params['output_dir']+'/tmp_isomut_*_mut.csv | grep -v "#"  | \
     grep -v SNV  | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_indels.isomut',shell=True)
 
     # create bedfile for SNVs for post processing
-    subprocess.check_call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
-    grep SNV | sort -n -k2,2 -k3,3 | cut -f 2,3 >'+params['output_dir']+'/temp.bed',shell=True)
+    subprocess.check_call('cat ' +params['output_dir']+'/tmp_isomut_*_mut.csv | grep -v "#"  | \
+    grep SNV | sort -n -k2,2 -k3,3 | cut -f 2,3 >'+params['output_dir']+'/tmp_isomut.bed',shell=True)
 
     # clean everything else
-    subprocess.check_call('rm '+params['output_dir']+'/*.csv',shell=True)
+    subprocess.check_call('rm '+params['output_dir']+'/tmp_isomut_*_mut.csv',shell=True)
 
     # change params for postprocessing
     params['base_quality_limit']= 13
     params['min_other_ref_freq']= 0
     params['samtools_flags'] = ' ' 
-    params['bedfile']=params['output_dir']+'/temp.bed'
+    params['bedfile']=params['output_dir']+'/tmp_isomut.bed'
 
     #run it
     run_isomut_in_parallel(params)
@@ -164,11 +163,11 @@ def run_isomut(params):
     # collect SNVs
     with open(params['output_dir']+'/all_SNVs.isomut','w') as snv_f:
         snv_f.write(header)
-    subprocess.check_call('cat ' +params['output_dir']+'/*.csv | grep -v "#"  | \
+    subprocess.check_call('cat ' +params['output_dir']+'/tmp_isomut_*_mut.csv | grep -v "#"  | \
     grep SNV | sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_SNVs.isomut',shell=True)
 
     #clean up
     subprocess.check_call(['rm',params['bedfile']])
-    subprocess.check_call('rm '+params['output_dir']+'/*.csv',shell=True)
+    subprocess.check_call('rm '+params['output_dir']+'/tmp_isomut_*_mut.csv',shell=True)
     
     print '\nDone'
