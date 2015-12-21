@@ -2,6 +2,7 @@ import multiprocessing
 import sys
 import time
 import subprocess
+import os
 import glob
 
 # command line parameter --max-depth for samtools
@@ -71,6 +72,8 @@ def run_isomut_on_block(chrom,from_pos,to_pos,
     cmd+=' 2>> '+output_dir+'/samtools.log | isomut '
     cmd+=' '.join(map(str,[min_sample_freq,min_other_ref_freq,cov_limit,
                            base_quality_limit,min_gap_dist_snv,min_gap_dist_indel])) +' '
+    for bam_file in bam_files:
+        cmd+=' '+ os.path.basename(bam_file)
     cmd+=' > ' +output_dir+'/tmp_isomut_'+ chrom+'_'+str(from_pos)+'_'+str(to_pos)+'_mut.csv  '
     
     return subprocess.check_call(cmd,shell=True)
@@ -130,7 +133,7 @@ def run_isomut_in_parallel(params):
                 finished = False
         time.sleep(0.1)
         
-    print '\nDone'
+    print '\nDone\n'
     
     
 def run_isomut(params):
@@ -139,7 +142,7 @@ def run_isomut(params):
     run_isomut_in_parallel(params)
 
     # collect indels
-    header="#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n"
+    header="#sample_name\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n"
     with open(params['output_dir']+'/all_indels.isomut','w') as indel_f  : 
         #write header
         indel_f.write(header)

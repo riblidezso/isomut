@@ -37,8 +37,8 @@ For running IsoMut:
 - ismout_example_script.py, example script  to run IsoMut
 
 Testing and demonstration:
-- tests/test.ipynb jupyter notebook showing a test run for the standalone C program
-- tests/test_isomut_parallel.ipynb jupyter notebook showing a parallel test run, with the BAQ based filtering
+- tests/test_isomut.ipynb jupyter notebook showing a parallel IsoMut test run
+- tests/test_isomut_c_part.ipynb jupyter notebook showing a test run for the C program
 
 ---
 
