@@ -9,7 +9,7 @@ import sys,os
 #	change os.getcwd for the path to it
 sys.path.append(os.getcwd()+'/src')
 #load the parallel wrapper function
-from isomut_wrappers import run_isomut_with_pp
+from isomut_wrappers import run_isomut
 
 #add path for isomut, if its in the path comment/delete this line
 #	if not running it from the isomut directory
@@ -31,7 +31,7 @@ params['n_conc_blocks']=4
 params['ref_fasta']="/home/ribli/input/index/gallus/Gallus_gallus.Galgal4.74.dna.toplevel.fa"
 #input dir output dir
 params['input_dir']='/nagyvinyok/adat86/sotejedlik/ribli/dt40/test_bams/'
-params['output_dir']='output/'
+params['output_dir']='isomut_test_output/'
 #the bam files used
 params['bam_filenames']=['DS014.bam', 'DS051.bam', 'DS052.bam', 'DS053.bam', 'DS054.bam', 'DS055.bam',
          'DS056.bam', 'DS057.bam', 'DS058.bam', 'DS101.bam', 'DS102.bam', 'DS103.bam']
@@ -44,9 +44,9 @@ params['chromosomes']=map(str,range(1,29))+ ['32','W','Z','MT']
 # defining mutation calling parameters
 #    default values here ...
 #################################################
-params['min_sample_freq']=0.31
+params['min_sample_freq']=0.2
 params['min_other_ref_freq']=0.93
-params['cov_limit']=7
+params['cov_limit']=5
 params['base_quality_limit']=30
 params['min_gap_dist_snv']=0
 params['min_gap_dist_indel']=20
