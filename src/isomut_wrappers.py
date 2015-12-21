@@ -50,10 +50,10 @@ def run_isomut_on_block(chrom,from_pos,to_pos,
                          input_dir,bam_files,output_dir,
                          ref_genome,
                          min_sample_freq=0.2,
-                         min_other_ref_freq=0.8,
-                         cov_limit=10,
+                         min_other_ref_freq=0.93,
+                         cov_limit=5,
                          base_quality_limit=30,
-                         min_gap_dist_snv=10,
+                         min_gap_dist_snv=0,
                          min_gap_dist_indel=20,
                          bedfile=None,
                          samtools_flags=' -B '):
@@ -65,7 +65,7 @@ def run_isomut_on_block(chrom,from_pos,to_pos,
         cmd+=' -l '+bedfile+' '
     for bam_file in bam_files:
         cmd+=input_dir+bam_file +' '    
-    cmd+=' 2> samtools.log | ./isomut '
+    cmd+=' 2> samtools.log | isomut '
     cmd+=' '.join(map(str,[min_sample_freq,min_other_ref_freq,cov_limit,
                            base_quality_limit,min_gap_dist_snv,min_gap_dist_indel])) +' '
     cmd+=' > ' +output_dir+'/'+ (chrom)+'_'+str(from_pos)+'_'+str(to_pos)+'_mut.csv  '
@@ -130,7 +130,8 @@ def run_isomut_in_parallel(params):
     print '\nDone'
     
     
-def run_isomut_with_pp(params):
+def run_isomut(params):
+    
     #run first
     run_isomut_in_parallel(params)
 
@@ -156,9 +157,9 @@ def run_isomut_with_pp(params):
     params['min_other_ref_freq']= 0
     params['samtools_flags'] = ' ' 
     params['bedfile']=params['output_dir']+'/temp.bed'
+
     #run it
     run_isomut_in_parallel(params)
-
 
     # collect SNVs
     with open(params['output_dir']+'/all_SNVs.isomut','w') as snv_f:
