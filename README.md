@@ -82,6 +82,12 @@ Testing and demonstration:
 	- no gaps are found closer than a given radius 
 - 3, For efficient proximal indel induced false positive SNV filtering, IsoMut repeats the the above for the suspected SNVs without the -B flag.
 
+---
+
+### Potential problems:
+
+- The samples have higher than 1000 per base read coverage. In this case our default settings might not use all the reads in the bam files. We call samtools with the --max-depth 1000 argument, to prevent possible memory issues with very large read depths. If you want to use all the reads, please change the SAMTOOLS_MAX_DEPTH variable at the beggining of isomut_wrappers.py to a number which is higher than highest coverage in any of the samples, and be careful with the memory usage. 
+- Number of samples is higher than 1000.  We do not recommend using that many samples, but in this case please redefine MAXSAMPLE in the beggining of isomut_lib.h to a number high enough. Also please watch out for the potential implications of samtools mpileup memory usage if the overall coverage will be higher than 1M reads.
 
 ---
 

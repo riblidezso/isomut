@@ -4,6 +4,9 @@ import time
 import subprocess
 import glob
 
+# command line parameter --max-depth for samtools
+SAMTOOLS_MAX_DEPTH=1000
+
 #
 # Calculates the blocks of parallelization on the genome
 #     - No blocks overlapping chromosomes
@@ -49,14 +52,14 @@ def define_parallel_blocks(ref_genome,min_block_no,chrom_list):
 def run_isomut_on_block(chrom,from_pos,to_pos,
                          input_dir,bam_files,output_dir,
                          ref_genome,
-                         min_sample_freq=0.2,
-                         min_other_ref_freq=0.93,
-                         cov_limit=5,
-                         base_quality_limit=30,
-                         min_gap_dist_snv=0,
-                         min_gap_dist_indel=20,
-                         bedfile=None,
-                         samtools_flags=' -B '):
+                         min_sample_freq,
+                         min_other_ref_freq,
+                         cov_limit,
+                         base_quality_limit,
+                         min_gap_dist_snv,
+                         min_gap_dist_indel,
+                         bedfile,
+                         samtools_flags):
     #build the command
     cmd=' samtools  mpileup ' + samtools_flags
     cmd+=' -f ' +ref_genome 
@@ -78,7 +81,7 @@ def run_isomut_in_parallel(params):
     if (not params.has_key('bedfile')):
         params['bedfile']=None
     if (not params.has_key('samtools_flags')):
-        params['samtools_flags']=' -B '
+        params['samtools_flags']=' -B --max-depth '+ str(SAMTOOLS_MAX_DEPTH) + ' ' 
     if (not params.has_key('chromosomes')):
         params['chromosomes']=None
         
@@ -154,7 +157,7 @@ def run_isomut(params):
     # change params for postprocessing
     params['base_quality_limit']= 13
     params['min_other_ref_freq']= 0
-    params['samtools_flags'] = ' ' 
+    params['samtools_flags'] = ' --max-depth '+ str(SAMTOOLS_MAX_DEPTH)  + ' '
     params['bedfile']=params['output_dir']+'/tmp_isomut.bed'
 
     #run it
