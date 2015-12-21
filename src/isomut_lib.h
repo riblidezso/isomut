@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
+#include <ctype.h>
     
 ///////////////////////////////////////////////////////////////////////////
 // Constants 

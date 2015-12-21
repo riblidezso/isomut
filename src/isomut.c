@@ -39,9 +39,8 @@ int main(int argc, char** argv)
     //print header
     printf("#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n");
     
-    //FILE* test_f = fopen("/Users/ribli/unique_mutation/data2/dbg.input","r");
-    
     //loop over input lines
+    //FILE* test_f = fopen("/Users/ribli/unique_mutation/data2/dbg.input","r");
     //while ((line_size = getline(&line, &len, test_f)) != -1) {
     while ((line_size = getline(&line, &len, stdin)) != -1) {
         //the pileup line structure for the line being read

@@ -814,29 +814,30 @@ int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_ind
     *val = 0 ;
     *idx  = 0 ; 
     
-    int i;
+    int i,j;
     //loop over samples
     for(i=0;i<my_mplp->n_samples;i++){
         if( my_mplp->freqs[i][INS_START_IDX] > (*val) && //larger than largest yet
-            my_mplp->freqs[i][INS_START_IDX] != ZERO_COV_FREQ ){ //not a 0 cov sample
-           //save value of max, sample idx, and the mut base as chr
+                    my_mplp->freqs[i][INS_START_IDX] != ZERO_COV_FREQ ){ //not a 0 cov sample
+            //save value of max, sample idx, and the mut base as chr
             *val=my_mplp->freqs[i][INS_START_IDX];
             *idx=i;
-            strncpy(mut_indel,my_mplp->ins_bases[i][0],strlen(my_mplp->ins_bases[i][0])+1);
+            //copy first indel, and make it uppercase
+            for(j=0;j<MAX_INDEL_LEN;j++) mut_indel[j] = (char) toupper(my_mplp->ins_bases[i][0][j]);
             strncpy(mut_type,"INS\0",4);
         }
         if( my_mplp->freqs[i][DEL_START_IDX] > (*val) && //larger than largest yet
-            my_mplp->freqs[i][DEL_START_IDX] != ZERO_COV_FREQ ){ //not a 0 cov sample
-           //save value of max, sample idx, and the mut base as chr
+                    my_mplp->freqs[i][DEL_START_IDX] != ZERO_COV_FREQ ){ //not a 0 cov sample
+            //save value of max, sample idx, and the mut base as chr
             *val=my_mplp->freqs[i][DEL_START_IDX];
             *idx=i;
-            strncpy(mut_indel,my_mplp->del_bases[i][0],strlen(my_mplp->del_bases[i][0])+1);
+            //copy first indel, and make it uppercase
+            for(j=0;j<MAX_INDEL_LEN;j++) mut_indel[j] = (char) toupper(my_mplp->del_bases[i][0][j]);
             strncpy(mut_type,"DEL\0",4);
         }
     }
     return 0;
 }
-
 
 /*
     gets the highest indel freq, except for 1 sample
