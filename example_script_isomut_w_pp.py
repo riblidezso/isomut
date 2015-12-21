@@ -1,12 +1,21 @@
 #!/usr/bin/env python
+
 #################################################
 # importing the wrapper
 #################################################
-#add path for isomput_parallel.py if its not here
-import sys,os,subprocess
+import sys,os
+#add path for isomut_wrappers.py
+#	if not running it from the isomut directory
+#	change os.getcwd for the path to it
 sys.path.append(os.getcwd())
-#load the parallel wraooer function
+#load the parallel wrapper function
 from isomut_wrappers import run_isomut_with_pp
+
+#add path for isomut, if its in the path comment/delete this line
+#	if not running it from the isomut directory
+#	change os.getcwd for the path to it
+os.environ["PATH"] += os.pathsep + os.getcwd()
+
 
 #################################################
 # defining administrative parameters

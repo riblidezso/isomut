@@ -2,11 +2,18 @@
 #################################################
 # importing the wrapper
 #################################################
-#add path for isomput_parallel.py if its not here
-#import sys
-#sys.path.append('path for isomut_parallel.py')
-#load the parallel wraooer function
+import sys,os
+#add path for isomut_wrappers.py
+#	if not running it from the isomut directory
+#	change os.getcwd for the path to it
+sys.path.append(os.getcwd())
+#load the parallel wrapper function
 from isomut_wrappers import run_isomut_in_parallel
+
+#add path for isomut, if its in the path comment/delete this line
+#	if not running it from the isomut directory
+#	change os.getcwd for the path to it
+os.environ["PATH"] += os.pathsep + os.getcwd()
 
 #################################################
 # defining administrative parameters
@@ -35,9 +42,9 @@ params['chromosomes']=map(str,range(1,29))+ ['32','W','Z','MT']
 # defining mutation calling parameters
 #    default values here ...
 #################################################
-params['min_sample_freq']=0.1
-params['min_other_ref_freq']=0.8
-params['cov_limit']=3
+params['min_sample_freq']=0.2
+params['min_other_ref_freq']=0.93
+params['cov_limit']=5
 params['base_quality_limit']=30
 params['min_gap_dist_snv']=0
 params['min_gap_dist_indel']=20
