@@ -1,6 +1,6 @@
 # IsoMut: a robust method for calling unique mutations (SNVs and small indels) from multiple isogenic samples
 
-This is a C implementation of the mutation calling algorith described here (article to come ... ), and python wappers fro parallel exectution, and the BAQ based filtering of SNVs. 
+This is the implementation of the mutation calling algorithm described here (article to come ... ). The core parts are written in C, and the example script, and the wrapper for parallel execution are in python. Please note, that running the example python script does not require any knowledge in python programming, only pathnames and parameter values need to be changed.
 
 
 ---
@@ -9,7 +9,7 @@ This is a C implementation of the mutation calling algorith described here (arti
 
 - compile IsoMut
 - modify the pathnames for your data in isomut_example_script.py, and run the script
-- check out test_isomut_w_pp.ipynb, for necessities, and details
+- check out test_isomut.ipynb, for necessities, and details
 
 ---
 
@@ -27,10 +27,13 @@ gcc -O3 -o isomut isomut.c isomut_lib.o  fisher.o -lm -W -Wall
 
 For the standalone C application:
 - src/isomut_lib.h src/isomut_lib.c  the library
+- src/fisher.c code for calculating the mutation quality score
 - src/isomut.c the application
 
 For the parallel wrapper:
-- src/isomut_wrappers.py the python functions for parallel execution, and BAQ filtering
+- src/isomut_wrappers.py the python functions for parallel execution
+
+For running IsoMut:
 - ismout_example_script.py, example script  to run IsoMut
 
 Testing and demonstration:
