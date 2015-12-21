@@ -49,6 +49,10 @@
 */
 struct mplp
 {
+    //sample names for easier output
+    char** sample_names;
+    int n_sample_names;
+    
     //raw data
     char* raw_line;
     
@@ -121,7 +125,8 @@ int print_mplp(struct mplp* my_mplp);
 /*
       process input mpileup line from samtools mpileup command output
 */
-int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,int baseq_limit);
+int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,
+                            int baseq_limit,char** sample_names,int n_sample_names);
 
 ////////////////////////////////////////////////////////////////////////////
 // read pileup struct from mpileup line

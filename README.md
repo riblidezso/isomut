@@ -52,7 +52,7 @@ Testing and demonstration:
 ### Understanding the output
 
 - The output is a tab separated file, each line is a detected mutation. The columns are the following:
-	- #sample_idx: the index of the sample in the input list of samples given which contain the mutation. 
+	- #sample_name: the name of the bam file which contains the mutation. 
 	- chr: the chromosome/contig name of the mutation
 	- pos: the 1-based position of the mutation for SNV, and the previous base before INS/DEL
 	- type: the mutation type: values can be: SNV/INS/DEL

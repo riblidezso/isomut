@@ -82,6 +82,9 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
     //free and initialize resources int the target
     free_mplp(target);
     
+    target->sample_names=from->sample_names;
+    target->n_sample_names=from->n_sample_names;
+    
     //copy raw line and chromosome
     target->raw_line = (char*) malloc((strlen(from->raw_line)+1) * sizeof(char));
     strcpy( target->raw_line, from->raw_line);
@@ -177,10 +180,21 @@ int print_mplp(struct mplp* my_mplp){
 /*
       process input mpileup line from samtools mpileup command output
 */
-int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,int baseq_limit){
+int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,
+                            int baseq_limit,char** sample_names,int n_sample_names){
     
     //read mpileup 
     get_mplp(my_mplp,line,line_size);
+    
+    //assert if n_sampls==n_sample_names
+    if(n_sample_names == my_mplp->n_samples){
+        my_mplp->n_sample_names=n_sample_names;
+        my_mplp->sample_names=sample_names;
+    }
+    else{
+        printf("ERROR, length of sample names != number of samples in input stream\n ");
+        exit(1);
+    }
     
     //count bases
     count_bases_all_samples(my_mplp,baseq_limit);
@@ -593,8 +607,8 @@ int flush_accepted_mutations(struct mplp* saved_mutations,
 */
 int print_mutation(struct mplp* my_mplp){
     if ( strcmp(my_mplp->mut_type,"SNV") ==0 ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t%c\t%c\t%d\t%.3f\t%.3f\n",
-               my_mplp->mut_sample_idx,
+        printf("%s\t%s\t%d\t%s\t%.2f\t%c\t%c\t%d\t%.3f\t%.3f\n",
+               my_mplp->sample_names[my_mplp->mut_sample_idx],
                my_mplp->chrom,
                my_mplp->pos,
                my_mplp->mut_type,
@@ -606,8 +620,8 @@ int print_mutation(struct mplp* my_mplp){
                my_mplp->cleanliness);
     }
     if ( strcmp(my_mplp->mut_type,"INS") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t-\t%s\t%d\t%.3f\t%.3f\n",
-               my_mplp->mut_sample_idx,
+        printf("%s\t%s\t%d\t%s\t%.2f\t-\t%s\t%d\t%.3f\t%.3f\n",
+               my_mplp->sample_names[my_mplp->mut_sample_idx],
                my_mplp->chrom,
                my_mplp->pos,
                my_mplp->mut_type,
@@ -619,8 +633,8 @@ int print_mutation(struct mplp* my_mplp){
 
     }
     if ( strcmp(my_mplp->mut_type,"DEL") ==0   ){
-        printf("%d\t%s\t%d\t%s\t%.2f\t%s\t-\t%d\t%.3f\t%.3f\n",
-               my_mplp->mut_sample_idx,
+        printf("%s\t%s\t%d\t%s\t%.2f\t%s\t-\t%d\t%.3f\t%.3f\n",
+               my_mplp->sample_names[my_mplp->mut_sample_idx],
                my_mplp->chrom,
                my_mplp->pos,
                my_mplp->mut_type,

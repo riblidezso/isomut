@@ -6,9 +6,9 @@ int main(int argc, char** argv)
 {
     //cmdline args
     //parameters for mutation calling
-    if(argc!=7){
+    if(argc<9){
         printf("ERROR please provide 5 args \n min_sample_freq (0.3) \n min_other_ref_freq (0.1)\n"); 
-        printf(" cov_limit (10)\n base quality limit (30),\n prox_gap_dist_SNV  (10),\n  prox_gap_dist_indel  (100), \n"); 
+        printf(" cov_limit (10)\n base quality limit (30),\n prox_gap_dist_SNV  (10),\n  prox_gap_dist_indel  (100),  list of sample names \n");
         exit(1);
     }
     double min_sample_freq=strtod(argv[1],NULL);
@@ -17,6 +17,11 @@ int main(int argc, char** argv)
     int baseq_limit=(int) strtol(argv[4],NULL,10);
     int prox_gap_min_dist_SNV= (int) strtol(argv[5],NULL,10);
     int prox_gap_min_dist_indel= (int) strtol(argv[6],NULL,10);
+    //sample names
+    int n_sample_names=argc-7;
+    char** sample_names= (char**) malloc(n_sample_names * sizeof(char*));
+    int i=0;
+    for(i=0;i<n_sample_names;i++) sample_names[i]=argv[7+i];
     
     //varaiables for reading a line
     char* line = NULL;
@@ -26,7 +31,6 @@ int main(int argc, char** argv)
     //potential mutation list
     struct mplp* potential_mutations = (struct mplp*) malloc(MUT_BUFFER_SIZE * sizeof(struct mplp)) ;
     //init all
-    int i;
     for( i=0;i<MUT_BUFFER_SIZE;i++) init_mplp(&potential_mutations[i]);
     int mut_ptr = i = 0; //pointer for potential mutation buffer 
     
@@ -37,7 +41,7 @@ int main(int argc, char** argv)
     int is_gap = 1 ; // 0 yes, 1 no
     
     //print header
-    printf("#sample_idx\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n");
+    printf("#sample_name\tchr\tpos\ttype\tscore\tref\tmut\tcov\tmut_freq\tcleanliness\n");
     
     //loop over input lines
     //FILE* test_f = fopen("/Users/ribli/unique_mutation/data2/dbg.input","r");
@@ -48,7 +52,7 @@ int main(int argc, char** argv)
         init_mplp(&my_mplp);
         
         //build the struct from input line
-        process_mplp_input_line(&my_mplp,line,line_size,baseq_limit);
+        process_mplp_input_line(&my_mplp,line,line_size,baseq_limit,sample_names,n_sample_names);
         
         //call snvs with forward prox gap filtering
         call_snv(potential_mutations,&mut_ptr,&my_mplp,
