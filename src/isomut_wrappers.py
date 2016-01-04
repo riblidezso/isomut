@@ -84,7 +84,7 @@ def run_isomut_in_parallel(params):
     if (not params.has_key('bedfile')):
         params['bedfile']=None
     if (not params.has_key('samtools_flags')):
-        params['samtools_flags']=' -B --max-depth '+ str(SAMTOOLS_MAX_DEPTH) + ' ' 
+        params['samtools_flags']=' -B -d '+ str(SAMTOOLS_MAX_DEPTH) + ' ' 
     if (not params.has_key('chromosomes')):
         params['chromosomes']=None
         
