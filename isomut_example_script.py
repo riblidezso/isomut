@@ -44,7 +44,7 @@ params['chromosomes']=map(str,range(1,29))+ ['32','W','Z','MT']
 # defining mutation calling parameters
 #    default values here ...
 #################################################
-params['min_sample_freq']=0.2
+params['min_sample_freq']=0.21
 params['min_other_ref_freq']=0.93
 params['cov_limit']=5
 params['base_quality_limit']=30
