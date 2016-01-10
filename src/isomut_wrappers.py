@@ -203,7 +203,7 @@ def run_isomut(params):
     # change params for postprocessing
     params['base_quality_limit']= 13
     params['min_other_ref_freq']= 0
-    params['samtools_flags'] = ' --max-depth '+ str(SAMTOOLS_MAX_DEPTH)  + ' '
+    params['samtools_flags'] = ' -d '+ str(SAMTOOLS_MAX_DEPTH)  + ' '
     params['bedfile']=params['output_dir']+'/tmp_isomut.bed'
 
     #run it
