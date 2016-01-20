@@ -12,7 +12,7 @@ int main(int argc, char** argv)
         exit(1);
     }
     double min_sample_freq=strtod(argv[1],NULL);
-    double max_other_freq=strtod(argv[2],NULL);
+    double min_cleanliness=strtod(argv[2],NULL);
     int cov_limit=(int) strtol(argv[3],NULL,10);
     int baseq_limit=(int) strtol(argv[4],NULL,10);
     int prox_gap_min_dist_SNV= (int) strtol(argv[5],NULL,10);
@@ -56,12 +56,12 @@ int main(int argc, char** argv)
         
         //call snvs with forward prox gap filtering
         call_snv(potential_mutations,&mut_ptr,&my_mplp,
-                 min_sample_freq,max_other_freq,cov_limit,
+                 min_sample_freq,min_cleanliness,cov_limit,
                  last_gap_chrom,last_gap_pos_end,prox_gap_min_dist_SNV); 
         
         //call indels with forward prox gap filtering
         call_indel(potential_mutations,&mut_ptr,&my_mplp,
-                   min_sample_freq,max_other_freq,cov_limit,
+                   min_sample_freq,min_cleanliness,cov_limit,
                    last_gap_chrom,last_gap_pos_start,last_gap_pos_end,
                    prox_gap_min_dist_SNV,prox_gap_min_dist_indel); 
                    
