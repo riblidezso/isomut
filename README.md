@@ -93,9 +93,10 @@ Testing and demonstration:
 
 ### Authors
 
-Main code was written by me (Dezso Ribli), but the research process is done in the collaboration of  
-- SE enzimology insitute: David Szuts, Janos Molnar
-- ELTE department of complex physics: Istvan Csabai, Orsi Pipek, Dezso Ribli
+Main code was written by Dezso Ribli, and the whole research was done in the collaboration of: 
+- David Szuts, Janos Molnar (Institute of Enzymology, Research Centre for Natural Sciences, Hungarian Academy of Sciences) 
+- Istvan Csabai, Orsi Pipek, Dezso Ribli (Department of Physics of Complex Systems, Eotvos Lorand University)
+- Zolan Szallasi (Center for Biological Sequence Analysis, Department of Systems Biology, Technical University of Denmark)
 
 
 Fisher's exact test from this github repo, ( thanks Christopher Chang ) :
