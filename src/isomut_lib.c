@@ -659,7 +659,6 @@ int print_mutation(struct mplp* my_mplp){
 int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
              double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
              char* last_gap_chrom, int last_gap_pos_end, int proximal_gap_min_distance){
-    
     //filter position if it is too close to last gap
     if ( last_gap_chrom != NULL && //no gap yet
          strcmp(last_gap_chrom,my_mplp->chrom) == 0 && //same chrom
@@ -672,9 +671,11 @@ int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
     char mut_base = 'E';
     
     get_max_non_ref_freq(my_mplp,&sample_mut_freq,&sample_idx,&mut_base);
-    get_min_ref_freq(my_mplp,&min_other_ref_freq,sample_idx,&other_idx);
+    int status_mrf = get_min_ref_freq(my_mplp,&min_other_ref_freq,sample_idx,&other_idx);
 
-    if (sample_mut_freq >= sample_mut_freq_limit && // mut freq larger than limit
+
+    if (status_mrf == 0 && // not bad position
+        sample_mut_freq >= sample_mut_freq_limit && // mut freq larger than limit
         min_other_ref_freq > min_other_ref_freq_limit && //other sample ref_freq higher than limit 
         my_mplp->counts[sample_idx][COV_IDX] >= cov_limit ){ //coverage higher than limit
         
@@ -755,6 +756,12 @@ int get_min_ref_freq(struct mplp* my_mplp,double* val, int idx_2skip, int* other
             *other_idx=i;
         }
     }
+    
+    //all other samples had zero coverage:
+    if (*val==42){
+        return 1;
+    }
+    
     return 0;
 }
 
