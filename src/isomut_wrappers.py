@@ -176,13 +176,13 @@ def run_isomut(params):
     subprocess.check_call(
         'tail -q -n+2 ' +params['output_dir']+'/tmp_isomut_*_mut.csv | \
         awk \'$4=="INS" || $4=="DEL" {print}\' | \
-        sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/all_indels.isomut',shell=True)
+        sort -k2,2 -k3,3n >> '+params['output_dir']+'/all_indels.isomut',shell=True)
 
     # create bedfile for SNVs for post processing
     subprocess.check_call(
         'tail -q -n+2 ' +params['output_dir']+'/tmp_isomut_*_mut.csv |\
         awk \'$4=="SNV" {print}\' | \
-        sort -n -k2,2 -k3,3 | cut -f 2,3 > ' +params['output_dir']+'/tmp_isomut.bed',shell=True)
+        sort -k2,2 -k3,3n | cut -f 2,3 > ' +params['output_dir']+'/tmp_isomut.bed',shell=True)
 
     #save the original filtered cleanliness for each position
     cleanliness_dict=dict()
@@ -217,7 +217,7 @@ def run_isomut(params):
     subprocess.check_call(
         'tail -q -n+2 '+params['output_dir']+'/tmp_isomut_*_mut.csv | \
         awk \'$4=="SNV" {print}\' | \
-        sort -n -k2,2 -k3,3 >> '+params['output_dir']+'/tmp_all_SNVs.isomut',shell=True)
+        sort -k2,2 -k3,3n >> '+params['output_dir']+'/tmp_all_SNVs.isomut',shell=True)
    
     #change cleanliness for the originally filtered one
     with open(params['output_dir']+'/all_SNVs.isomut','w') as new_fh:
