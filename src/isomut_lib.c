@@ -16,15 +16,15 @@ int init_mplp(struct mplp* my_mplp){
     my_mplp->pos=-42;
     my_mplp->n_samples=-42;
     my_mplp->ref_nuq='E';
-    
+
     for(i=0;i<MAXSAMPLE;i++){
         my_mplp->raw_bases[i]=NULL;
         my_mplp->raw_quals[i]=NULL;
         my_mplp->ins_bases[i]=NULL;
         my_mplp->del_bases[i]=NULL;
     }
-    
-    
+
+
     strcpy(my_mplp->mut_type,"NOT\0");
     my_mplp->mut_base='E';
     my_mplp->mut_score=-42;
@@ -32,7 +32,7 @@ int init_mplp(struct mplp* my_mplp){
     my_mplp->mut_sample_idx=-42;
     my_mplp->mut_freq=-42;
     my_mplp->cleanliness=-42;
-    
+
     return 0;
 }
 
@@ -46,12 +46,12 @@ int init_mplp(struct mplp* my_mplp){
 int free_mplp(struct mplp* my_mplp){
     if( my_mplp->raw_line !=NULL) free(my_mplp->raw_line);
     if( my_mplp->chrom !=NULL) free(my_mplp->chrom);
-    
+
     int i,j;
     for(i=0;i<my_mplp->n_samples;i++){
         if( my_mplp->raw_bases[i] !=NULL) free(my_mplp->raw_bases[i]);
         if( my_mplp->raw_quals[i] !=NULL) free(my_mplp->raw_quals[i]);
-        
+
         if( my_mplp->ins_bases[i] !=NULL){
             for(j=0;j<my_mplp->counts[i][INS_START_IDX];j++){
                 free(my_mplp->ins_bases[i][j]);
@@ -81,10 +81,10 @@ int free_mplp(struct mplp* my_mplp){
 int copy_mplp(struct mplp* target ,struct mplp* from) {
     //free and initialize resources int the target
     free_mplp(target);
-    
+
     target->sample_names=from->sample_names;
     target->n_sample_names=from->n_sample_names;
-    
+
     //copy raw line and chromosome
     target->raw_line = (char*) malloc((strlen(from->raw_line)+1) * sizeof(char));
     strcpy( target->raw_line, from->raw_line);
@@ -105,7 +105,7 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
     //loop over sample level data
     int i,j;
     for(i=0;i<target->n_samples;i++){
-        //copy basic data cov, bases, quals 
+        //copy basic data cov, bases, quals
         target->raw_cov[i]=from->raw_cov[i];
         target->raw_bases[i] = (char*) malloc((strlen(from->raw_bases[i])+1) * sizeof(char));
         strcpy( target->raw_bases[i], from->raw_bases[i]);
@@ -122,7 +122,7 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
         for (j=0;j<target->counts[i][INS_START_IDX];j++){
             target->ins_bases[i][j] = (char*) malloc((strlen(from->ins_bases[i][j])+1) * sizeof(char));
             strcpy( target->ins_bases[i][j], from->ins_bases[i][j]);
-        } 
+        }
         for (j=0;j<target->counts[i][DEL_START_IDX];j++){
             target->del_bases[i][j] = (char*) malloc((strlen(from->del_bases[i][j])+1) * sizeof(char));
             strcpy( target->del_bases[i][j], from->del_bases[i][j]);
@@ -130,7 +130,7 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
     }
     return 0;
 }
-    
+
 
 ////////////////////////////////////////////////////////////////////////////
 // formatted printing functions
@@ -143,7 +143,7 @@ int copy_mplp(struct mplp* target ,struct mplp* from) {
 int print_mplp(struct mplp* my_mplp){
     //print position level info
     printf("%s %d %c\n",my_mplp->chrom,my_mplp->pos,my_mplp->ref_nuq);
-    
+
     //print counts and freqs and bases and quals
     int i;
     for(i=0;i<my_mplp->n_samples;i++){
@@ -182,10 +182,10 @@ int print_mplp(struct mplp* my_mplp){
 */
 int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,
                             int baseq_limit,char** sample_names,int n_sample_names){
-    
-    //read mpileup 
+
+    //read mpileup
     get_mplp(my_mplp,line,line_size);
-    
+
     //assert if n_sampls==n_sample_names
     if(n_sample_names == my_mplp->n_samples){
         my_mplp->n_sample_names=n_sample_names;
@@ -195,21 +195,21 @@ int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,
         printf("ERROR, length of sample names != number of samples in input stream\n ");
         exit(1);
     }
-    
+
     //count bases
     count_bases_all_samples(my_mplp,baseq_limit);
-    
+
     //calculate freqs
     calculate_freqs_all_samples(my_mplp);
-    
+
     //collect indels
     collect_indels_all_samples(my_mplp,baseq_limit);
-    
+
     return 0;
 }
-    
-    
-    
+
+
+
 ////////////////////////////////////////////////////////////////////////////
 // read pileup struct from mpileup line
 ////////////////////////////////////////////////////////////////////////////
@@ -217,15 +217,15 @@ int process_mplp_input_line(struct mplp* my_mplp,char* line, ssize_t line_size,
 /*
     gets mpileup line from the char* line
 */
-int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){   
+int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){
     //store the raw line too
     free(my_mplp->raw_line);
     my_mplp->raw_line = (char*)malloc( (line_size+1) * sizeof(char));
     strcpy(my_mplp->raw_line,line);
-    
+
     //temp buffer for reading those entries which will be formatted as not strings
     char* tmp_str=NULL;
-    
+
     ssize_t i=0;
     while(i<line_size){
         //chrom
@@ -236,7 +236,7 @@ int get_mplp(struct mplp* my_mplp,char* line, ssize_t line_size){
         //ref nuq
         get_next_entry(line,line_size,&i,&tmp_str);
         my_mplp->ref_nuq=tmp_str[0];
-        
+
         //read samples
         int temp_sample=0;
         while(i<line_size){
@@ -266,12 +266,12 @@ int get_next_entry(char* line, ssize_t line_size, ssize_t* pointer, char** resul
     while(line[*pointer]!='\t' && *pointer<line_size)(*pointer)++;
     c = (int) *pointer-c0;
     (*pointer)++;
-    
+
     if(*result != NULL) free(*result);
     *result = (char*)malloc( (c+1) * sizeof(char));
     memcpy(*result,line+c0,c * sizeof(char));
     (*result)[c] = 0;
-    
+
     return c;
 }
 
@@ -300,18 +300,18 @@ int count_bases(char* bases, char* quals,int* counts,char ref_base,int baseq_lim
     //initialize counts to zero
     int i,j;
     for( i=0;i<MAX_IDX;i++) counts[i]=0;
-    
+
     i = 0; //pointer in str for bases
     j = 0; //pointer in str for qualities
     counts[COV_IDX]=0;
     while(bases[i]!=0){
         //beginning and end of the read signs
-        if(bases[i] == '^' ) {i+=2;counts[READ_START_IDX]++;} 
-        else if(bases[i] == '$' ) {i++,counts[READ_END_IDX]++;} 
+        if(bases[i] == '^' ) {i+=2;counts[READ_START_IDX]++;}
+        else if(bases[i] == '$' ) {i++,counts[READ_END_IDX]++;}
         //deletions
         else if(bases[i]=='-' ) handle_deletion(bases,&counts[DEL_START_IDX],&i,quals[j-1],baseq_lim);
         //insetions
-        else if(bases[i]=='+' ) handle_insertion(bases,&counts[INS_START_IDX],&i,quals[j-1],baseq_lim); 
+        else if(bases[i]=='+' ) handle_insertion(bases,&counts[INS_START_IDX],&i,quals[j-1],baseq_lim);
         //real base data
         else handle_base(bases,quals,counts,&counts[COV_IDX],&i,&j,baseq_lim);
     }
@@ -324,13 +324,13 @@ int count_bases(char* bases, char* quals,int* counts,char ref_base,int baseq_lim
 }
 
 
-/* 
+/*
     parse a base from the bases and quals
 */
 int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
                    int* base_ptr,int* qual_ptr,int baseq_lim){
-    
-    char c = bases[*base_ptr]; 
+
+    char c = bases[*base_ptr];
     if(quals[*qual_ptr] >= baseq_lim + 33 ){
         if(c=='.' || c==',' )      base_counts[REF_IDX]++;
         else if(c=='A' || c=='a' ) base_counts[A_IDX]++;
@@ -342,11 +342,11 @@ int handle_base(char* bases,char* quals,int* base_counts, int* filtered_cov,
     }
     (*qual_ptr)++;
     (*base_ptr)++;
-    
+
     return 0;
 }
 
-/* 
+/*
     parse a deletion from the bases and quals
 */
 int handle_deletion(char* bases,int* del_count,int* base_ptr,char qual,int baseq_lim){
@@ -357,7 +357,7 @@ int handle_deletion(char* bases,int* del_count,int* base_ptr,char qual,int baseq
     return 0;
 }
 
-/* 
+/*
     parse an insertion from the bases and quals
 */
 int handle_insertion(char* bases,int* ins_count,int* base_ptr,char qual,int baseq_lim){
@@ -428,7 +428,7 @@ int collect_indels_all_samples(struct mplp* my_mplp,int baseq_lim){
 /*
     collect the inserted, and deleted bases
 */
-int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count, 
+int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count,
                    char*** del_bases,int del_count, int baseq_lim){
     //allocate new memory
     if( *ins_bases!=NULL || *del_bases!=NULL){
@@ -439,7 +439,7 @@ int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count,
     }
     *ins_bases = (char**) malloc( (ins_count) * sizeof(char*));
     *del_bases = (char**) malloc( (del_count) * sizeof(char*));
-   
+
     int i,j,del_c,ins_c; //pointers in data
     i = j = del_c = ins_c = 0;
     char* offset;
@@ -474,28 +474,28 @@ int collect_indels(char* bases,char* quals, char*** ins_bases, int ins_count,
     }
     return 0;
 }
-  
+
 
 ////////////////////////////////////////////////////////////////////////////
-// Proximal gap filtering 
+// Proximal gap filtering
 ////////////////////////////////////////////////////////////////////////////
-  
+
 /*
     updates last indel gap position if there is one at the position
 */
-int update_last_gap(struct mplp* my_mplp, char** last_gap_chrom, 
+int update_last_gap(struct mplp* my_mplp, char** last_gap_chrom,
                     int* last_gap_pos_start, int* last_gap_pos_end, int* is_gap){
     *is_gap=1;
     int i,j;
     for(i=0;i<my_mplp->n_samples;i++){
         //last gap is either an insertion start deletion start or 0 cov
         // or more than 50% read start, read end
-        if (my_mplp->counts[i][INS_START_IDX]!=0 || 
+        if (my_mplp->counts[i][INS_START_IDX]!=0 ||
             my_mplp->counts[i][DEL_START_IDX]!=0 ||
             my_mplp->freqs[i][READ_START_IDX] > 0.5 ||
             my_mplp->freqs[i][READ_END_IDX] > 0.5 ){
-            
-            //copy last chrom 
+
+            //copy last chrom
             if ( *last_gap_chrom != NULL ) free(*last_gap_chrom);
             *last_gap_chrom = (char*) malloc( (strlen(my_mplp->chrom)+1) * sizeof(char));
             strcpy(*last_gap_chrom,my_mplp->chrom);
@@ -505,7 +505,7 @@ int update_last_gap(struct mplp* my_mplp, char** last_gap_chrom,
             if ( *last_gap_pos_start > *last_gap_pos_end ){
                  *last_gap_pos_end = *last_gap_pos_start;
              }
-            //update last gap pos end for indels 
+            //update last gap pos end for indels
              if ( *last_gap_pos_start >= *last_gap_pos_end  && my_mplp->counts[i][INS_START_IDX]!=0 ){
                  *last_gap_pos_end = *last_gap_pos_start + 1;
              }
@@ -529,13 +529,13 @@ int update_last_gap(struct mplp* my_mplp, char** last_gap_chrom,
 int proximal_gap_hindsight_filter(struct mplp* saved_mutations,int* mut_ptr,
                                   char* last_gap_chrom,int last_gap_pos_start,
                                  int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel){
-    
+
     //if position is a called indel the filter has been run
     if( *mut_ptr > 0 &&  strcmp(last_gap_chrom,saved_mutations[(*mut_ptr) -1].chrom) == 0 &&
             last_gap_pos_start == saved_mutations[(*mut_ptr) -1].pos ){
         return 0;
     }
-    int i,j; 
+    int i,j;
     for(i= *mut_ptr-1;i>=0;i--){
         //delet SNV too close to gap
         if (strcmp(last_gap_chrom,saved_mutations[i].chrom) != 0) return 0;
@@ -549,7 +549,7 @@ int proximal_gap_hindsight_filter(struct mplp* saved_mutations,int* mut_ptr,
         else if( ( strcmp(saved_mutations[i].mut_type,"INS")==0 && //ins
                    last_gap_pos_start - saved_mutations[i].pos  < proximal_gap_min_dist_indel)
                    || ( strcmp(saved_mutations[i].mut_type,"DEL")==0  &&  //del
-                   last_gap_pos_start - saved_mutations[i].pos -  
+                   last_gap_pos_start - saved_mutations[i].pos -
                    ((int)strlen(saved_mutations[i].mut_indel))  < proximal_gap_min_dist_indel) ){
             //delete this line
             free_mplp(&saved_mutations[i]);
@@ -563,7 +563,7 @@ int proximal_gap_hindsight_filter(struct mplp* saved_mutations,int* mut_ptr,
         }
     }
     return 0;
-        
+
 }
 
 /*
@@ -572,14 +572,14 @@ int proximal_gap_hindsight_filter(struct mplp* saved_mutations,int* mut_ptr,
 int flush_accepted_mutations(struct mplp* saved_mutations,
                              char* recent_chrom,int recent_pos,int* mut_ptr,
                              int proximal_gap_min_dist_SNV,int proximal_gap_min_dist_indel){
-    int i,j; 
+    int i,j;
     for(i = 0; i<*mut_ptr;i++){
         //check if mut is accepted already
         if ( ( strcmp(recent_chrom,saved_mutations[i].chrom) != 0 ) || //other chrom
              ( strcmp(saved_mutations[i].mut_type,"SNV")==0 && //SNV
              recent_pos - saved_mutations[i].pos  > proximal_gap_min_dist_SNV ) ||
              ((strcmp(saved_mutations[i].mut_type,"INS")==0 || //indel
-               strcmp(saved_mutations[i].mut_type,"DEL")==0 ) && 
+               strcmp(saved_mutations[i].mut_type,"DEL")==0 ) &&
              recent_pos - saved_mutations[i].pos  > proximal_gap_min_dist_indel )){
             //print and delete it
             print_mutation(&saved_mutations[i]);
@@ -589,17 +589,17 @@ int flush_accepted_mutations(struct mplp* saved_mutations,
             for(j=i;j < *mut_ptr;j++){
                 copy_mplp(&saved_mutations[j],&saved_mutations[j+1]);
                 free_mplp(&saved_mutations[j+1]);
-            } 
+            }
             i--;
         }
     }
     return 0;
-} 
-        
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////
-// Call Mutations 
+// Call Mutations
 ////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -665,36 +665,36 @@ int call_snv(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
          my_mplp->pos - last_gap_pos_end < proximal_gap_min_distance ){ // proximal gap
         return 0;
     }
-        
+
     double sample_mut_freq,min_other_ref_freq;
     int sample_idx,other_idx;
     char mut_base = 'E';
-    
+
     get_max_non_ref_freq(my_mplp,&sample_mut_freq,&sample_idx,&mut_base);
     int status_mrf = get_min_ref_freq(my_mplp,&min_other_ref_freq,sample_idx,&other_idx);
 
 
     if (status_mrf == 0 && // not bad position
         sample_mut_freq >= sample_mut_freq_limit && // mut freq larger than limit
-        min_other_ref_freq > min_other_ref_freq_limit && //other sample ref_freq higher than limit 
+        min_other_ref_freq > min_other_ref_freq_limit && //other sample ref_freq higher than limit
         my_mplp->counts[sample_idx][COV_IDX] >= cov_limit ){ //coverage higher than limit
-        
+
         my_mplp->mut_base=mut_base;
         my_mplp->mut_sample_idx=sample_idx;
         my_mplp->mut_freq=sample_mut_freq;
         my_mplp->cleanliness=min_other_ref_freq;
         strncpy(my_mplp->mut_type, "SNV\0",4);
-       
+
         my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_mut_freq) * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (sample_mut_freq * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (min_other_ref_freq * my_mplp->counts[other_idx][COV_IDX]),
                                (uint32_t) ((1-min_other_ref_freq) * my_mplp->counts[other_idx][COV_IDX]),1));
-        
+
         //save potential mutation
         copy_mplp(&saved_mutations[*mut_ptr],my_mplp);
         (*mut_ptr)++;
     }
-    return 0;        
+    return 0;
 }
 
 
@@ -710,14 +710,14 @@ int get_max_non_ref_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_b
     char idx_2_base[MAX_IDX];
     idx_2_base[ A_IDX ] = 'A';idx_2_base[ C_IDX ] = 'C';
     idx_2_base[ G_IDX ] = 'G';idx_2_base[ T_IDX ] = 'T';
-  
+
     //get index for ref base
     int ref_idx=base_2_idx[(int)my_mplp->ref_nuq];
-   
+
     //initialize values to negative numbers
     *val = -42;
     *idx  = -42;
-    
+
     int i,j;
     //loop over samples
     for(i=0;i<my_mplp->n_samples;i++){
@@ -744,7 +744,7 @@ int get_min_ref_freq(struct mplp* my_mplp,double* val, int idx_2skip, int* other
     //initialize value to large number
     *val = 42;
     *other_idx=0;
-    
+
     int i;
     //loop over samples
     for(i=0;i<my_mplp->n_samples;i++){
@@ -756,18 +756,18 @@ int get_min_ref_freq(struct mplp* my_mplp,double* val, int idx_2skip, int* other
             *other_idx=i;
         }
     }
-    
+
     //all other samples had zero coverage:
     if (*val==42){
         return 1;
     }
-    
+
     return 0;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////
-// Call indels 
+// Call indels
 ////////////////////////////////////////////////////////////////////////////
 
 
@@ -778,7 +778,7 @@ int call_indel(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
                double sample_mut_freq_limit,double min_other_ref_freq_limit,int cov_limit,
                char* last_gap_chrom, int last_gap_pos_start,int last_gap_pos_end,
                int prox_gap_min_dist_SNV,int prox_gap_min_dist_indel){
-    
+
     //filter position if it is too close to last gap
     if ( last_gap_chrom != NULL && //no gap yet
          strcmp(last_gap_chrom,my_mplp->chrom) == 0  && //same chrom
@@ -786,55 +786,55 @@ int call_indel(struct mplp* saved_mutations, int* mut_ptr, struct mplp* my_mplp,
          my_mplp->pos != last_gap_pos_start ){ //  dont filter for indel because of himself!
         return 0;
     }
-    
-    
+
+
     double sample_indel_freq,min_other_noindel_freq;
     int sample_idx,other_idx;
     char mut_indel[MAX_INDEL_LEN];
     char mut_type[4];
-    
+
     get_max_indel_freq(my_mplp,&sample_indel_freq,&sample_idx,mut_indel,mut_type);
     get_min_other_noindel_freq(my_mplp,&min_other_noindel_freq,sample_idx,&other_idx);
-    
+
     //todo??
-    //filter for non unique indels? 
-    
+    //filter for non unique indels?
+
     if (sample_indel_freq >= sample_mut_freq_limit && // indel freq larger than limit
-        min_other_noindel_freq > min_other_ref_freq_limit && //  cleanness 
+        min_other_noindel_freq > min_other_ref_freq_limit && //  cleanness
         my_mplp->counts[sample_idx][COV_IDX] >= cov_limit ){ //coverage higher than limit
-        
+
         strncpy(my_mplp->mut_indel,mut_indel,MAX_INDEL_LEN);
         my_mplp->mut_sample_idx=sample_idx;
         my_mplp->mut_freq=sample_indel_freq;
         my_mplp->cleanliness=min_other_noindel_freq;
         strncpy(my_mplp->mut_type,mut_type,4);
-       
+
         my_mplp->mut_score = -log10(fisher22((uint32_t) ((1-sample_indel_freq) * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (sample_indel_freq * my_mplp->counts[sample_idx][COV_IDX]),
                                (uint32_t) (min_other_noindel_freq * my_mplp->counts[other_idx][COV_IDX]),
                                (uint32_t) ((1-min_other_noindel_freq) *my_mplp->counts[other_idx][COV_IDX]),1));
-        
+
         //proximal hindsight filtering for SNVs before
         proximal_gap_hindsight_filter(saved_mutations,mut_ptr,my_mplp->chrom,
                                       my_mplp->pos,prox_gap_min_dist_SNV,prox_gap_min_dist_indel);
-        
+
         //save potential mutation
         copy_mplp(&saved_mutations[*mut_ptr],my_mplp);
         (*mut_ptr)++;
     }
-    return 0;        
+    return 0;
 }
 
 
 
 /*
-    gets the highest indel freq 
+    gets the highest indel freq
 */
 int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_indel,char* mut_type){
     //initialize values to negative numbers
     *val = 0 ;
-    *idx  = 0 ; 
-    
+    *idx  = 0 ;
+
     int i,j;
     //loop over samples
     for(i=0;i<my_mplp->n_samples;i++){
@@ -844,7 +844,7 @@ int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_ind
             *val=my_mplp->freqs[i][INS_START_IDX];
             *idx=i;
             //copy first indel, and make it uppercase
-            for(j=0;j<MAX_INDEL_LEN;j++) mut_indel[j] = (char) toupper(my_mplp->ins_bases[i][0][j]);
+            for(j=0;j<=strlen(my_mplp->ins_bases[i][0]);j++) mut_indel[j] = (char) toupper(my_mplp->ins_bases[i][0][j]);
             strncpy(mut_type,"INS\0",4);
         }
         if( my_mplp->freqs[i][DEL_START_IDX] > (*val) && //larger than largest yet
@@ -853,7 +853,7 @@ int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_ind
             *val=my_mplp->freqs[i][DEL_START_IDX];
             *idx=i;
             //copy first indel, and make it uppercase
-            for(j=0;j<MAX_INDEL_LEN;j++) mut_indel[j] = (char) toupper(my_mplp->del_bases[i][0][j]);
+            for(j=0;j<=strlen(my_mplp->del_bases[i][0]);j++) mut_indel[j] = (char) toupper(my_mplp->del_bases[i][0][j]);
             strncpy(mut_type,"DEL\0",4);
         }
     }
@@ -867,16 +867,16 @@ int get_min_other_noindel_freq(struct mplp* my_mplp,double* val, int idx_2skip, 
     //initialize value to  large number
     *val =  42;
     *other_idx=0;
-    
+
     int i;
     //loop over samples
     for(i=0;i<my_mplp->n_samples;i++){
-        double noindel_freq= my_mplp->freqs[i][REF_IDX] - my_mplp->freqs[i][INS_START_IDX] - 
+        double noindel_freq= my_mplp->freqs[i][REF_IDX] - my_mplp->freqs[i][INS_START_IDX] -
                                my_mplp->freqs[i][DEL_START_IDX];
         if ( i != idx_2skip && // skip the mutated sample
-               noindel_freq < *val  && // smaller 
+               noindel_freq < *val  && // smaller
                my_mplp->freqs[i][INS_START_IDX] != ZERO_COV_FREQ ){ //not a 0 cov sample
-            //save value of min 
+            //save value of min
             *val=noindel_freq;
             *other_idx=i;
         }
