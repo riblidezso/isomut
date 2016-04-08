@@ -844,7 +844,9 @@ int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_ind
             *val=my_mplp->freqs[i][INS_START_IDX];
             *idx=i;
             //copy first indel, and make it uppercase
-            for(j=0;j<=strlen(my_mplp->ins_bases[i][0]);j++) mut_indel[j] = (char) toupper(my_mplp->ins_bases[i][0][j]);
+            for(j=0;j<= (int) strlen(my_mplp->ins_bases[i][0]);j++){
+                mut_indel[j] = (char) toupper(my_mplp->ins_bases[i][0][j]);
+            }
             strncpy(mut_type,"INS\0",4);
         }
         if( my_mplp->freqs[i][DEL_START_IDX] > (*val) && //larger than largest yet
@@ -853,7 +855,9 @@ int get_max_indel_freq(struct mplp* my_mplp,double* val, int* idx, char* mut_ind
             *val=my_mplp->freqs[i][DEL_START_IDX];
             *idx=i;
             //copy first indel, and make it uppercase
-            for(j=0;j<=strlen(my_mplp->del_bases[i][0]);j++) mut_indel[j] = (char) toupper(my_mplp->del_bases[i][0][j]);
+            for(j=0;j<= (int) strlen(my_mplp->del_bases[i][0]);j++){
+                mut_indel[j] = (char) toupper(my_mplp->del_bases[i][0][j]);
+            }
             strncpy(mut_type,"DEL\0",4);
         }
     }
