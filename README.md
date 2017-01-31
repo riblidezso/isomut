@@ -1,3 +1,12 @@
+### Disclaimer
+
+The official IsoMut code  is available [here](https://github.com/genomicshu/isomut) . If your goal is to reproduce the results in the [paper](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-017-1492-4), please use the official code.
+
+Reference: Pipek O. BMC bioinformatics: Fast and accurate mutation detection in whole genome sequences of multiple isogenic samples with IsoMut. Biomed Central; 12/2017;18.
+
+---
+
+
 # IsoMut: a robust method for calling unique mutations (SNVs and small indels) from multiple isogenic samples
 
 This is the implementation of the mutation calling algorithm described here (article to come ... ). The core parts are written in C, and the example script, and the wrapper for parallel execution are in python. Please note, that running the example python script does not require any knowledge in python programming, only pathnames and parameter values need to be changed.
